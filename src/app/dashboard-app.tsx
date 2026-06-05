@@ -10,9 +10,12 @@ import {
   CalendarDays,
   CheckCircle2,
   DollarSign,
+  Eye,
   LockKeyhole,
   LogOut,
+  MousePointerClick,
   ShieldCheck,
+  Sparkles,
   Users
 } from 'lucide-react';
 import {
@@ -251,24 +254,26 @@ export default function DashboardApp() {
                     name === 'revenue' || name === 'spend' ? money(Number(value)) : compact(Number(value))
                   }
                 />
-                <Bar dataKey="leads" name="Leads" fill="#264c3d" radius={[5, 5, 0, 0]} />
-                <Bar dataKey="revenue" name="Revenue" fill="#c4824a" radius={[5, 5, 0, 0]} />
+                <Bar dataKey="leads" name="Leads" fill="#0866ff" radius={[5, 5, 0, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="#18243a" radius={[5, 5, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <aside className="audit-panel">
-          <p className="eyebrow">Audit notes</p>
-          <h2>Security finding</h2>
+        <aside className="quality-panel">
+          <div className="quality-orbit">
+            <Sparkles size={22} />
+          </div>
+          <p className="eyebrow">Reporting quality</p>
+          <h2>Client-safe performance view</h2>
           <p>
-            The planted bug is in `meta_ads_metrics`: Northpaw can directly read Cedarline rows until
-            the RLS migration is applied.
+            Data is scoped from the signed-in user, then summarized by source so the same dashboard works for agency and client access.
           </p>
-          <div className="audit-list">
-            <span><LockKeyhole size={15} /> Backend derives tenant from the JWT user.</span>
-            <span><ShieldCheck size={15} /> SQL migration scopes direct table reads.</span>
-            <span><BarChart3 size={15} /> RPC is the intended dashboard data path.</span>
+          <div className="quality-list">
+            <span><Eye size={15} /> {totals.clients.size} visible client{totals.clients.size === 1 ? '' : 's'}</span>
+            <span><MousePointerClick size={15} /> {compact(totals.clicks)} Meta clicks in range</span>
+            <span><LockKeyhole size={15} /> Tenant scope resolved server-side</span>
           </div>
         </aside>
       </section>
@@ -312,7 +317,7 @@ export default function DashboardApp() {
                 sortedRows.map((row) => (
                   <tr key={`${row.client_id}-${row.source_key}`}>
                     <td>{row.client_name}</td>
-                    <td><span className="source-pill">{row.source}</span></td>
+                    <td><span className={`source-pill ${row.source_key}`}>{row.source}</span></td>
                     <td>{compact(row.leads)}</td>
                     <td>{money(row.won_revenue)}</td>
                     <td>{row.spend > 0 ? money(row.spend) : 'N/A'}</td>
