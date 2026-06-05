@@ -4,18 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import {
-  AlertTriangle,
   ArrowDownUp,
   BarChart3,
+  Building2,
   CalendarDays,
-  CheckCircle2,
   DollarSign,
-  Eye,
-  LockKeyhole,
   LogOut,
   MousePointerClick,
   ShieldCheck,
-  Sparkles,
+  Target,
+  TrendingUp,
   Users
 } from 'lucide-react';
 import {
@@ -28,7 +26,7 @@ import {
   YAxis
 } from 'recharts';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
-import type { PerformanceResponse, SourcePerformanceRow } from '@/lib/source-performance';
+import type { SourcePerformanceRow } from '@/lib/source-performance';
 import { compact, money, roas } from '@/lib/format';
 
 const supabase = createBrowserSupabaseClient();
@@ -45,12 +43,11 @@ export default function DashboardApp() {
   const [start, setStart] = useState(defaultStart);
   const [end, setEnd] = useState(defaultEnd);
   const [rows, setRows] = useState<SourcePerformanceRow[]>([]);
-  const [dataPath, setDataPath] = useState<PerformanceResponse['dataPath'] | null>(null);
-  const [warning, setWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('leads');
+  const [selectedClient, setSelectedClient] = useState('all');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -75,8 +72,7 @@ export default function DashboardApp() {
   async function signOut() {
     await supabase.auth.signOut();
     setRows([]);
-    setDataPath(null);
-    setWarning(null);
+    setSelectedClient('all');
   }
 
   async function loadData(token: string, nextStart: string, nextEnd: string) {
@@ -89,8 +85,6 @@ export default function DashboardApp() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? 'Unable to load dashboard data.');
       setRows(payload.rows);
-      setDataPath(payload.dataPath);
-      setWarning(payload.warning ?? null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load dashboard data.');
     } finally {
@@ -98,35 +92,61 @@ export default function DashboardApp() {
     }
   }
 
+  const clientOptions = useMemo(() => {
+    const clients = new Map<string, string>();
+    for (const row of rows) {
+      clients.set(row.client_id, row.client_name);
+    }
+
+    return Array.from(clients.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
+
+  useEffect(() => {
+    if (selectedClient === 'all') return;
+    if (!clientOptions.some((client) => client.id === selectedClient)) {
+      setSelectedClient('all');
+    }
+  }, [clientOptions, selectedClient]);
+
+  const visibleRows = useMemo(() => {
+    if (selectedClient === 'all') return rows;
+    return rows.filter((row) => row.client_id === selectedClient);
+  }, [rows, selectedClient]);
+
   const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => {
+    return [...visibleRows].sort((a, b) => {
       if (a.client_name !== b.client_name) return a.client_name.localeCompare(b.client_name);
       const left = sortKey === 'roas' ? a.roas ?? -1 : a[sortKey];
       const right = sortKey === 'roas' ? b.roas ?? -1 : b[sortKey];
       return right - left;
     });
-  }, [rows, sortKey]);
+  }, [visibleRows, sortKey]);
 
   const totals = useMemo(
     () =>
-      rows.reduce(
+      visibleRows.reduce(
         (acc, row) => {
           acc.leads += row.leads;
           acc.revenue += row.won_revenue;
           acc.spend += row.spend;
           acc.clicks += row.clicks;
+          acc.metaLeads += row.meta_reported_leads;
+          acc.purchases += row.purchases;
           acc.clients.add(row.client_name);
           return acc;
         },
-        { leads: 0, revenue: 0, spend: 0, clicks: 0, clients: new Set<string>() }
+        { leads: 0, revenue: 0, spend: 0, clicks: 0, metaLeads: 0, purchases: 0, clients: new Set<string>() }
       ),
-    [rows]
+    [visibleRows]
   );
 
   const blendedRoas = totals.spend > 0 ? totals.revenue / totals.spend : null;
+  const costPerMetaLead = totals.metaLeads > 0 ? totals.spend / totals.metaLeads : null;
   const chartRows = useMemo(
     () => {
-      const grouped = rows.reduce((map, row) => {
+      const grouped = visibleRows.reduce((map, row) => {
           const current = map.get(row.source) ?? { source: row.source, leads: 0, revenue: 0, spend: 0 };
           current.leads += row.leads;
           current.revenue += row.won_revenue;
@@ -136,29 +156,32 @@ export default function DashboardApp() {
         }, new Map<string, { source: string; leads: number; revenue: number; spend: number }>());
       return Array.from(grouped.values()).sort((a, b) => b.leads - a.leads);
     },
-    [rows]
+    [visibleRows]
   );
 
   if (!session) {
     return (
       <main className="login-shell">
         <section className="login-visual">
-          <div className="brand-mark">BC</div>
-          <p className="eyebrow">Base Coat Marketing</p>
-          <h1>Attribution that is clear enough to defend.</h1>
-          <p className="login-copy">
-            Leads, won revenue, Meta spend, and ROAS by source with client-safe access controls.
-          </p>
-          <div className="proof-row">
-            <span><ShieldCheck size={16} /> Tenant scoped</span>
-            <span><BarChart3 size={16} /> Source-level</span>
-            <span><LockKeyhole size={16} /> Authenticated</span>
+          <div className="login-brand">
+            <div className="brand-mark">BC</div>
+            <span>Base Coat Marketing</span>
+          </div>
+          <div className="login-preview">
+            <p className="eyebrow">Client reporting console</p>
+            <h1>Source performance, revenue, and Meta efficiency.</h1>
+            <div className="preview-strip">
+              <span><strong>ROAS</strong> by source</span>
+              <span><strong>Won</strong> revenue</span>
+              <span><strong>Tenant</strong> scoped</span>
+            </div>
           </div>
         </section>
         <form className="login-panel" onSubmit={signIn}>
           <div>
-            <p className="eyebrow">Dashboard login</p>
-            <h2>Open performance workspace</h2>
+            <p className="eyebrow">Secure access</p>
+            <h2>Sign in to the dashboard</h2>
+            <p className="form-copy">Use the provided agency or Northpaw client login.</p>
           </div>
           <label>
             Email
@@ -191,9 +214,9 @@ export default function DashboardApp() {
         <div>
           <div className="brand-line">
             <span className="brand-dot">BC</span>
-            <span>Base Coat Marketing</span>
+            <span>Base Coat Reporting</span>
           </div>
-          <h1>Source performance</h1>
+          <h1>Performance overview</h1>
         </div>
         <div className="top-actions">
           <div className="user-pill">
@@ -207,6 +230,22 @@ export default function DashboardApp() {
       </header>
 
       <section className="control-band">
+        <div className="scope-field">
+          <Building2 size={17} />
+          <label>
+            Client
+            {clientOptions.length > 1 ? (
+              <select value={selectedClient} onChange={(event) => setSelectedClient(event.target.value)}>
+                <option value="all">All clients</option>
+                {clientOptions.map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+            ) : (
+              <span>{clientOptions[0]?.name ?? 'Loading'}</span>
+            )}
+          </label>
+        </div>
         <div className="date-field">
           <CalendarDays size={17} />
           <label>
@@ -221,27 +260,26 @@ export default function DashboardApp() {
             <input type="date" value={end} onChange={(event) => setEnd(event.target.value)} />
           </label>
         </div>
-        <div className={`status-chip ${dataPath === 'rpc' ? 'ok' : 'warn'}`}>
-          {dataPath === 'rpc' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-          {dataPath === 'rpc' ? 'RPC active' : 'Server fallback'}
+        <div className="status-chip ok">
+          <ShieldCheck size={16} />
+          Scoped from signed-in user
         </div>
       </section>
 
-      {warning && <p className="notice">{warning}</p>}
       {error && <p className="error-banner">{error}</p>}
 
       <section className="kpi-grid">
-        <Metric label="Leads" value={compact(totals.leads)} icon={<Users size={18} />} />
+        <Metric label="CRM leads" value={compact(totals.leads)} icon={<Users size={18} />} />
         <Metric label="Won revenue" value={money(totals.revenue)} icon={<DollarSign size={18} />} />
         <Metric label="Meta spend" value={money(totals.spend)} icon={<BarChart3 size={18} />} />
-        <Metric label="Blended ROAS" value={roas(blendedRoas)} icon={<ShieldCheck size={18} />} />
+        <Metric label="Blended ROAS" value={roas(blendedRoas)} icon={<TrendingUp size={18} />} />
       </section>
 
       <section className="workspace">
         <div className="chart-panel">
           <div className="section-heading">
             <p className="eyebrow">By source</p>
-            <h2>Lead volume and won revenue</h2>
+            <h2>Lead volume and revenue contribution</h2>
           </div>
           <div className="chart-frame">
             <ResponsiveContainer width="100%" height={310}>
@@ -261,19 +299,17 @@ export default function DashboardApp() {
           </div>
         </div>
 
-        <aside className="quality-panel">
-          <div className="quality-orbit">
-            <Sparkles size={22} />
+        <aside className="meta-panel">
+          <p className="eyebrow">Meta efficiency</p>
+          <h2>{money(totals.spend)} invested</h2>
+          <div className="meta-ring">
+            <span>{roas(blendedRoas)}</span>
+            <small>blended ROAS</small>
           </div>
-          <p className="eyebrow">Reporting quality</p>
-          <h2>Client-safe performance view</h2>
-          <p>
-            Data is scoped from the signed-in user, then summarized by source so the same dashboard works for agency and client access.
-          </p>
-          <div className="quality-list">
-            <span><Eye size={15} /> {totals.clients.size} visible client{totals.clients.size === 1 ? '' : 's'}</span>
-            <span><MousePointerClick size={15} /> {compact(totals.clicks)} Meta clicks in range</span>
-            <span><LockKeyhole size={15} /> Tenant scope resolved server-side</span>
+          <div className="meta-list">
+            <span><MousePointerClick size={15} /> {compact(totals.clicks)} clicks</span>
+            <span><Target size={15} /> {compact(totals.metaLeads)} Meta-reported leads</span>
+            <span><DollarSign size={15} /> {costPerMetaLead ? money(costPerMetaLead) : 'N/A'} cost per Meta lead</span>
           </div>
         </aside>
       </section>
@@ -282,7 +318,7 @@ export default function DashboardApp() {
         <div className="table-header">
           <div>
             <p className="eyebrow">Performance table</p>
-            <h2>Find any number fast</h2>
+            <h2>Client and source breakdown</h2>
           </div>
           <div className="sort-control">
             <ArrowDownUp size={15} />
