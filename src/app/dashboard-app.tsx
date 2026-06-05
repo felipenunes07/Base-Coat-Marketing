@@ -207,7 +207,7 @@ export default function DashboardApp() {
       <main className="login-shell">
         <section className="login-visual">
           <div className="login-brand">
-            <div className="brand-mark">BC</div>
+            <img src="/logo-icon.png" alt="Base Coat Marketing Logo" className="brand-logo-img" />
             <span>Base Coat Reporting</span>
           </div>
           <div className="login-preview">
@@ -257,7 +257,7 @@ export default function DashboardApp() {
       <header className="topbar">
         <div>
           <div className="brand-line">
-            <span className="brand-dot">BC</span>
+            <img src="/logo-icon.png" alt="Base Coat Marketing Logo" className="brand-logo-img-small" />
             <span>Base Coat Reporting</span>
           </div>
           <h1>Performance overview</h1>
@@ -359,6 +359,16 @@ export default function DashboardApp() {
           <div className="chart-frame">
             <ResponsiveContainer width="100%" height={310}>
               <BarChart data={chartRows}>
+                <defs>
+                  <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fbb217" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#d9930c" stopOpacity={0.85} />
+                  </linearGradient>
+                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2c3e5d" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#111625" stopOpacity={0.9} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d8dedb" />
                 <XAxis dataKey="source" tickLine={false} axisLine={false} />
                 <YAxis tickLine={false} axisLine={false} />
@@ -367,8 +377,8 @@ export default function DashboardApp() {
                     name === 'revenue' || name === 'spend' ? money(Number(value)) : compact(Number(value))
                   }
                 />
-                <Bar dataKey="leads" name="Leads" fill="#0866ff" radius={[5, 5, 0, 0]} />
-                <Bar dataKey="revenue" name="Revenue" fill="#18243a" radius={[5, 5, 0, 0]} />
+                <Bar dataKey="leads" name="Leads" fill="url(#leadsGradient)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="url(#revenueGradient)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -491,10 +501,13 @@ export default function DashboardApp() {
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="metric">
-      <span>{icon}</span>
-      <p>{label}</p>
-      <strong>{value}</strong>
+    <div className="metric-card">
+      <div className="metric-sweep"></div>
+      <div className="metric-icon-wrap">{icon}</div>
+      <div className="metric-info">
+        <p className="metric-label">{label}</p>
+        <strong className="metric-value">{value}</strong>
+      </div>
     </div>
   );
 }
