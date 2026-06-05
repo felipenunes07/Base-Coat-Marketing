@@ -34,7 +34,7 @@ const supabase = createBrowserSupabaseClient();
 type SortKey = 'leads' | 'won_revenue' | 'spend' | 'roas';
 
 const defaultStart = '2026-03-01';
-const defaultEnd = '2026-03-31';
+const defaultEnd = '2026-06-05';
 
 function displaySource(row: Pick<SourcePerformanceRow, 'source' | 'source_key'>) {
   return sourceLabel(row.source_key, row.source);
