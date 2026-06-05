@@ -495,6 +495,31 @@ export default function DashboardApp() {
           </table>
         </div>
       </section>
+
+      {loading && (
+        <div className="paint-loader-overlay">
+          <div className="paint-loader-container">
+            <div className="paint-roller-wrapper">
+              <div className="paint-trail"></div>
+              <div className="paint-roller">
+                <div className="roller-cylinder"></div>
+                <div className="roller-handle-wire"></div>
+                <div className="roller-handle-grip"></div>
+              </div>
+            </div>
+            <div className="paint-loader-text">
+              <h3>Rolling out ads performance...</h3>
+              <p>Fetching leads and marketing spend</p>
+            </div>
+            <div className="floating-ads-particles">
+              <span className="particle p-dollar">$</span>
+              <span className="particle p-chart">📊</span>
+              <span className="particle p-lead">👤</span>
+              <span className="particle p-target">🎯</span>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
