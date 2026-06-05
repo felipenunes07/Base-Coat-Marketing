@@ -20,3 +20,15 @@ export function roas(value: number | null) {
 
   return `${value.toFixed(2)}x`;
 }
+
+export function moneyWithCents(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return 'N/A';
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+}

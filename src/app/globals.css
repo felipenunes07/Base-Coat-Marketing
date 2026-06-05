@@ -866,7 +866,15 @@ select:focus {
   margin-bottom: 24px;
 }
 
-.sort-control {
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sort-control,
+.table-filter-control {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -874,19 +882,29 @@ select:focus {
   padding: 8px 16px;
   border-radius: 10px;
   border: 1px solid var(--line);
+  transition: all 0.3s ease;
 }
 
-.sort-control svg {
+.sort-control:hover,
+.table-filter-control:hover {
+  border-color: var(--brand-gold);
+}
+
+.sort-control svg,
+.table-filter-control svg {
   color: var(--muted);
 }
 
-.sort-control select {
+.sort-control select,
+.table-filter-control select {
   height: 32px;
   border: 0;
   padding: 0;
   font-weight: 700;
   color: var(--navy);
   background: transparent;
+  cursor: pointer;
+  outline: none;
 }
 
 .table-wrap {
@@ -962,6 +980,30 @@ td:nth-child(2) {
 .source-pill.google_ads {
   background: #fef9c3;
   color: #a16207;
+}
+
+.source-pill.glsa {
+  background: #ecfccb;
+  color: #3f6212;
+  border: 1px solid #d9f99d;
+}
+
+.source-pill.seo {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+.source-pill.email {
+  background: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+
+.source-pill.unknown {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
 .muted-value {

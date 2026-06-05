@@ -27,7 +27,7 @@ import {
 } from 'recharts';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 import { sourceLabel, type SourcePerformanceRow } from '@/lib/source-performance';
-import { compact, money, roas } from '@/lib/format';
+import { compact, money, roas, moneyWithCents } from '@/lib/format';
 
 const supabase = createBrowserSupabaseClient();
 
@@ -52,6 +52,7 @@ export default function DashboardApp() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('leads');
   const [selectedClient, setSelectedClient] = useState('all');
+  const [tableClient, setTableClient] = useState('all');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -114,6 +115,13 @@ export default function DashboardApp() {
     }
   }, [clientOptions, selectedClient]);
 
+  useEffect(() => {
+    if (tableClient === 'all') return;
+    if (!clientOptions.some((client) => client.id === tableClient)) {
+      setTableClient('all');
+    }
+  }, [clientOptions, tableClient]);
+
   const visibleRows = useMemo(() => {
     if (selectedClient === 'all') return rows;
     return rows.filter((row) => row.client_id === selectedClient);
@@ -128,6 +136,11 @@ export default function DashboardApp() {
     });
   }, [visibleRows, sortKey]);
 
+  const tableRows = useMemo(() => {
+    if (tableClient === 'all') return sortedRows;
+    return sortedRows.filter((row) => row.client_id === tableClient);
+  }, [sortedRows, tableClient]);
+
   const totals = useMemo(
     () =>
       visibleRows.reduce(
@@ -138,10 +151,11 @@ export default function DashboardApp() {
           acc.clicks += row.clicks;
           acc.metaLeads += row.meta_reported_leads;
           acc.purchases += row.purchases;
+          acc.impressions += row.impressions || 0;
           acc.clients.add(row.client_name);
           return acc;
         },
-        { leads: 0, revenue: 0, spend: 0, clicks: 0, metaLeads: 0, purchases: 0, clients: new Set<string>() }
+        { leads: 0, revenue: 0, spend: 0, clicks: 0, metaLeads: 0, purchases: 0, impressions: 0, clients: new Set<string>() }
       ),
     [visibleRows]
   );
@@ -149,6 +163,17 @@ export default function DashboardApp() {
   const blendedRoas = totals.spend > 0 ? totals.revenue / totals.spend : null;
   const costPerMetaLead = totals.metaLeads > 0 ? totals.spend / totals.metaLeads : null;
   const revenuePerLead = totals.leads > 0 ? totals.revenue / totals.leads : null;
+
+  // New Meta Ads detailed metrics
+  const metaCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  const metaCpc = totals.clicks > 0 ? totals.spend / totals.clicks : null;
+  const metaCpa = totals.purchases > 0 ? totals.spend / totals.purchases : null;
+  const crmMetaLeads = useMemo(() => 
+    visibleRows
+      .filter((row) => row.source_key === 'meta_ads')
+      .reduce((sum, row) => sum + row.leads, 0),
+    [visibleRows]
+  );
   const isAgency = clientOptions.length > 1;
   const scopeLabel =
     selectedClient === 'all'
@@ -392,9 +417,10 @@ export default function DashboardApp() {
             <small>blended ROAS</small>
           </div>
           <div className="meta-list">
-            <span><MousePointerClick size={15} /> {compact(totals.clicks)} clicks</span>
-            <span><Target size={15} /> {compact(totals.metaLeads)} Meta-reported leads</span>
-            <span><DollarSign size={15} /> {costPerMetaLead ? money(costPerMetaLead) : 'N/A'} cost per Meta lead</span>
+            <span><MousePointerClick size={15} /> {compact(totals.clicks)} clicks · {metaCtr > 0 ? `${metaCtr.toFixed(2)}%` : '0%'} CTR</span>
+            <span><TrendingUp size={15} /> {moneyWithCents(metaCpc)} CPC · {moneyWithCents(costPerMetaLead)} CPL</span>
+            <span><Target size={15} /> {compact(totals.metaLeads)} Meta leads vs {crmMetaLeads} CRM tracked</span>
+            <span><ShieldCheck size={15} /> {totals.purchases} purchases · {moneyWithCents(metaCpa)} CPA</span>
           </div>
         </aside>
       </section>
@@ -432,14 +458,27 @@ export default function DashboardApp() {
               Spend-driven metrics appear only where platform spend exists in the dataset.
             </p>
           </div>
-          <div className="sort-control">
-            <ArrowDownUp size={15} />
-            <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
-              <option value="leads">Sort by leads</option>
-              <option value="won_revenue">Sort by revenue</option>
-              <option value="spend">Sort by spend</option>
-              <option value="roas">Sort by ROAS</option>
-            </select>
+          <div className="table-controls">
+            {clientOptions.length > 1 && (
+              <div className="table-filter-control">
+                <Building2 size={15} />
+                <select value={tableClient} onChange={(event) => setTableClient(event.target.value)}>
+                  <option value="all">All clients</option>
+                  {clientOptions.map((client) => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="sort-control">
+              <ArrowDownUp size={15} />
+              <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
+                <option value="leads">Sort by leads</option>
+                <option value="won_revenue">Sort by revenue</option>
+                <option value="spend">Sort by spend</option>
+                <option value="roas">Sort by ROAS</option>
+              </select>
+            </div>
           </div>
         </div>
         <div className="table-wrap">
@@ -463,10 +502,10 @@ export default function DashboardApp() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={12}>Loading performance...</td></tr>
-              ) : sortedRows.length === 0 ? (
+              ) : tableRows.length === 0 ? (
                 <tr><td colSpan={12}>No data for this range.</td></tr>
               ) : (
-                sortedRows.map((row) => {
+                tableRows.map((row) => {
                   const cpl = row.meta_reported_leads > 0 ? row.spend / row.meta_reported_leads : null;
                   const rowRevenuePerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
                   return (
