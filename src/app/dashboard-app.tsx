@@ -144,6 +144,44 @@ export default function DashboardApp() {
 
   const blendedRoas = totals.spend > 0 ? totals.revenue / totals.spend : null;
   const costPerMetaLead = totals.metaLeads > 0 ? totals.spend / totals.metaLeads : null;
+  const revenuePerLead = totals.leads > 0 ? totals.revenue / totals.leads : null;
+  const isAgency = clientOptions.length > 1;
+  const scopeLabel =
+    selectedClient === 'all'
+      ? isAgency
+        ? 'All clients'
+        : clientOptions[0]?.name ?? 'Client account'
+      : clientOptions.find((client) => client.id === selectedClient)?.name ?? 'Selected client';
+
+  const clientSummaries = useMemo(() => {
+    const summaryMap = new Map<
+      string,
+      { id: string; name: string; leads: number; revenue: number; spend: number; clicks: number; metaLeads: number }
+    >();
+
+    for (const row of rows) {
+      const summary =
+        summaryMap.get(row.client_id) ??
+        { id: row.client_id, name: row.client_name, leads: 0, revenue: 0, spend: 0, clicks: 0, metaLeads: 0 };
+      summary.leads += row.leads;
+      summary.revenue += row.won_revenue;
+      summary.spend += row.spend;
+      summary.clicks += row.clicks;
+      summary.metaLeads += row.meta_reported_leads;
+      summaryMap.set(row.client_id, summary);
+    }
+
+    return Array.from(summaryMap.values()).sort((a, b) => b.revenue - a.revenue);
+  }, [rows]);
+
+  const sourceInsights = useMemo(
+    () =>
+      [...visibleRows]
+        .sort((a, b) => b.won_revenue - a.won_revenue || b.leads - a.leads)
+        .slice(0, 4),
+    [visibleRows]
+  );
+
   const chartRows = useMemo(
     () => {
       const grouped = visibleRows.reduce((map, row) => {
@@ -165,23 +203,24 @@ export default function DashboardApp() {
         <section className="login-visual">
           <div className="login-brand">
             <div className="brand-mark">BC</div>
-            <span>Base Coat Marketing</span>
+            <span>Base Coat Reporting</span>
           </div>
           <div className="login-preview">
-            <p className="eyebrow">Client reporting console</p>
-            <h1>Source performance, revenue, and Meta efficiency.</h1>
-            <div className="preview-strip">
-              <span><strong>ROAS</strong> by source</span>
-              <span><strong>Won</strong> revenue</span>
-              <span><strong>Tenant</strong> scoped</span>
+            <p className="eyebrow">Performance workspace</p>
+            <h1>Attribution reporting for agency and client views.</h1>
+            <div className="login-facts">
+              <span>CRM leads</span>
+              <span>Won revenue</span>
+              <span>Meta spend</span>
+              <span>ROAS</span>
             </div>
           </div>
         </section>
         <form className="login-panel" onSubmit={signIn}>
           <div>
-            <p className="eyebrow">Secure access</p>
-            <h2>Sign in to the dashboard</h2>
-            <p className="form-copy">Use the provided agency or Northpaw client login.</p>
+            <p className="eyebrow">Secure dashboard</p>
+            <h2>Sign in</h2>
+            <p className="form-copy">Use one of the test accounts from the assignment.</p>
           </div>
           <label>
             Email
@@ -196,8 +235,8 @@ export default function DashboardApp() {
             />
           </label>
           <div className="login-shortcuts">
-            <button type="button" onClick={() => setEmail('agency@skilltest.dev')}>Agency</button>
-            <button type="button" onClick={() => setEmail('client-northpaw@skilltest.dev')}>Client</button>
+            <button type="button" onClick={() => setEmail('agency@skilltest.dev')}>Agency view</button>
+            <button type="button" onClick={() => setEmail('client-northpaw@skilltest.dev')}>Northpaw client</button>
           </div>
           {error && <p className="error-text">{error}</p>}
           <button className="primary-button" disabled={authLoading}>
@@ -217,6 +256,9 @@ export default function DashboardApp() {
             <span>Base Coat Reporting</span>
           </div>
           <h1>Performance overview</h1>
+          <p className="page-subtitle">
+            {scopeLabel} · {start} to {end}
+          </p>
         </div>
         <div className="top-actions">
           <div className="user-pill">
@@ -262,7 +304,7 @@ export default function DashboardApp() {
         </div>
         <div className="status-chip ok">
           <ShieldCheck size={16} />
-          Scoped from signed-in user
+          Authenticated view
         </div>
       </section>
 
@@ -273,7 +315,35 @@ export default function DashboardApp() {
         <Metric label="Won revenue" value={money(totals.revenue)} icon={<DollarSign size={18} />} />
         <Metric label="Meta spend" value={money(totals.spend)} icon={<BarChart3 size={18} />} />
         <Metric label="Blended ROAS" value={roas(blendedRoas)} icon={<TrendingUp size={18} />} />
+        <Metric label="Meta clicks" value={compact(totals.clicks)} icon={<MousePointerClick size={18} />} />
+        <Metric label="Revenue / lead" value={revenuePerLead ? money(revenuePerLead) : 'N/A'} icon={<Target size={18} />} />
       </section>
+
+      {isAgency && selectedClient === 'all' ? (
+        <section className="client-comparison">
+          <div className="section-heading">
+            <p className="eyebrow">Agency view</p>
+            <h2>Client comparison</h2>
+          </div>
+          <div className="client-grid">
+            {clientSummaries.map((client) => {
+              const clientRoas = client.spend > 0 ? client.revenue / client.spend : null;
+              return (
+                <button
+                  className="client-tile"
+                  key={client.id}
+                  onClick={() => setSelectedClient(client.id)}
+                  type="button"
+                >
+                  <span>{client.name}</span>
+                  <strong>{money(client.revenue)}</strong>
+                  <small>{compact(client.leads)} leads · {money(client.spend)} spend · {roas(clientRoas)}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="workspace">
         <div className="chart-panel">
@@ -314,6 +384,30 @@ export default function DashboardApp() {
         </aside>
       </section>
 
+      <section className="insight-section">
+        <div className="section-heading">
+          <p className="eyebrow">Source readout</p>
+          <h2>What is driving the report</h2>
+        </div>
+        <div className="insight-grid">
+          {sourceInsights.map((row) => {
+            const revenuePerLead = row.leads > 0 ? row.won_revenue / row.leads : 0;
+            return (
+              <div className="insight-tile" key={`${row.client_id}-${row.source_key}-insight`}>
+                <div>
+                  <span className={`source-pill ${row.source_key}`}>{row.source}</span>
+                  <p>{row.client_name}</p>
+                </div>
+                <strong>{money(row.won_revenue)}</strong>
+                <small>
+                  {compact(row.leads)} leads - {money(revenuePerLead)} revenue per lead
+                </small>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="table-section">
         <div className="table-header">
           <div>
@@ -340,28 +434,40 @@ export default function DashboardApp() {
                 <th>Won revenue</th>
                 <th>Meta spend</th>
                 <th>ROAS</th>
+                <th>CPL</th>
+                <th>Revenue / lead</th>
                 <th>Clicks</th>
                 <th>Meta leads</th>
+                <th>Purchases</th>
+                <th>Impressions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8}>Loading performance...</td></tr>
+                <tr><td colSpan={12}>Loading performance...</td></tr>
               ) : sortedRows.length === 0 ? (
-                <tr><td colSpan={8}>No data for this range.</td></tr>
+                <tr><td colSpan={12}>No data for this range.</td></tr>
               ) : (
-                sortedRows.map((row) => (
-                  <tr key={`${row.client_id}-${row.source_key}`}>
-                    <td>{row.client_name}</td>
-                    <td><span className={`source-pill ${row.source_key}`}>{row.source}</span></td>
-                    <td>{compact(row.leads)}</td>
-                    <td>{money(row.won_revenue)}</td>
-                    <td>{row.spend > 0 ? money(row.spend) : 'N/A'}</td>
-                    <td>{roas(row.roas)}</td>
-                    <td>{compact(row.clicks)}</td>
-                    <td>{compact(row.meta_reported_leads)}</td>
-                  </tr>
-                ))
+                sortedRows.map((row) => {
+                  const cpl = row.meta_reported_leads > 0 ? row.spend / row.meta_reported_leads : null;
+                  const rowRevenuePerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
+                  return (
+                    <tr key={`${row.client_id}-${row.source_key}`}>
+                      <td>{row.client_name}</td>
+                      <td><span className={`source-pill ${row.source_key}`}>{row.source}</span></td>
+                      <td>{compact(row.leads)}</td>
+                      <td>{money(row.won_revenue)}</td>
+                      <td>{row.spend > 0 ? money(row.spend) : 'N/A'}</td>
+                      <td>{roas(row.roas)}</td>
+                      <td>{cpl ? money(cpl) : 'N/A'}</td>
+                      <td>{rowRevenuePerLead ? money(rowRevenuePerLead) : 'N/A'}</td>
+                      <td>{compact(row.clicks)}</td>
+                      <td>{compact(row.meta_reported_leads)}</td>
+                      <td>{compact(row.purchases)}</td>
+                      <td>{compact(row.impressions)}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
