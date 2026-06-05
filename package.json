@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:security": "node tests/security/tenant-isolation.mjs",
+    "test:security": "node --env-file-if-exists=.env.local tests/security/tenant-isolation.mjs",
     "scan:metrics": "node scripts/scan-meta-ads-metrics-usage.mjs"
   },
   "dependencies": {

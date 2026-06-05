@@ -14,10 +14,28 @@ Client-facing dashboard for the take-home challenge. It authenticates with the p
 
 ```bash
 npm install
+copy .env.example .env.local
 npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+## Environment
+
+The repo includes `.env.example` with the public Supabase config and the default dashboard date range.
+
+For local development, copy it to `.env.local`. For Vercel/Netlify, add these same variables in the project environment settings:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_URL
+SUPABASE_ANON_KEY
+NEXT_PUBLIC_DASHBOARD_DEFAULT_START
+NEXT_PUBLIC_DASHBOARD_DEFAULT_END
+```
+
+The default range is intentionally `2026-03-01` through `2026-06-05` because the dataset has records beyond March. March-only showed fewer rows by design; the wider default opens the dashboard with the full available test period.
 
 Logins:
 
