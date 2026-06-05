@@ -435,7 +435,7 @@ export default function DashboardApp() {
                 <th>Source</th>
                 <th>Leads</th>
                 <th>Won revenue</th>
-                <th>Meta spend</th>
+                <th>Platform spend</th>
                 <th>ROAS</th>
                 <th>CPL</th>
                 <th>Revenue / lead</th>
@@ -460,7 +460,11 @@ export default function DashboardApp() {
                       <td><span className={`source-pill ${row.source_key}`}>{row.source}</span></td>
                       <td>{compact(row.leads)}</td>
                       <td>{money(row.won_revenue)}</td>
-                      <td>{row.spend > 0 ? money(row.spend) : <span className="muted-value">No platform spend</span>}</td>
+                      <td>
+                        {row.spend > 0 ? money(row.spend) : (
+                          <span className="muted-value">No {row.source} spend data</span>
+                        )}
+                      </td>
                       <td>{roas(row.roas)}</td>
                       <td>{cpl ? money(cpl) : <span className="muted-value">N/A</span>}</td>
                       <td>{rowRevenuePerLead ? money(rowRevenuePerLead) : 'N/A'}</td>
