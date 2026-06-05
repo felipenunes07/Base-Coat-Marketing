@@ -36,6 +36,23 @@ type SortKey = 'leads' | 'won_revenue' | 'spend' | 'roas';
 const defaultStart = '2026-03-01';
 const defaultEnd = '2026-03-31';
 
+function displaySource(row: Pick<SourcePerformanceRow, 'source' | 'source_key'>) {
+  if (row.source?.trim()) {
+    return row.source;
+  }
+
+  const labels: Record<string, string> = {
+    meta_ads: 'Meta',
+    google_ads: 'Google',
+    glsa: 'GLSA',
+    seo: 'SEO',
+    email: 'Email',
+    unknown: 'Unknown'
+  };
+
+  return labels[row.source_key] ?? row.source_key.replaceAll('_', ' ');
+}
+
 export default function DashboardApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('agency@skilltest.dev');
@@ -185,11 +202,12 @@ export default function DashboardApp() {
   const chartRows = useMemo(
     () => {
       const grouped = visibleRows.reduce((map, row) => {
-          const current = map.get(row.source) ?? { source: row.source, leads: 0, revenue: 0, spend: 0 };
+          const source = displaySource(row);
+          const current = map.get(source) ?? { source, leads: 0, revenue: 0, spend: 0 };
           current.leads += row.leads;
           current.revenue += row.won_revenue;
           current.spend += row.spend;
-          map.set(row.source, current);
+          map.set(source, current);
           return map;
         }, new Map<string, { source: string; leads: number; revenue: number; spend: number }>());
       return Array.from(grouped.values()).sort((a, b) => b.leads - a.leads);
@@ -395,7 +413,7 @@ export default function DashboardApp() {
             return (
               <div className="insight-tile" key={`${row.client_id}-${row.source_key}-insight`}>
                 <div>
-                  <span className={`source-pill ${row.source_key}`}>{row.source}</span>
+                  <span className={`source-pill ${row.source_key}`}>{displaySource(row)}</span>
                   <p>{row.client_name}</p>
                 </div>
                 <strong>{money(row.won_revenue)}</strong>
@@ -457,12 +475,12 @@ export default function DashboardApp() {
                   return (
                     <tr key={`${row.client_id}-${row.source_key}`}>
                       <td>{row.client_name}</td>
-                      <td><span className={`source-pill ${row.source_key}`}>{row.source}</span></td>
+                      <td><span className={`source-pill ${row.source_key}`}>{displaySource(row)}</span></td>
                       <td>{compact(row.leads)}</td>
                       <td>{money(row.won_revenue)}</td>
                       <td>
                         {row.spend > 0 ? money(row.spend) : (
-                          <span className="muted-value">No {row.source} spend data</span>
+                          <span className="muted-value">No {displaySource(row)} spend data</span>
                         )}
                       </td>
                       <td>{roas(row.roas)}</td>
