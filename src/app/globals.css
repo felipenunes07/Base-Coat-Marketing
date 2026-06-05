@@ -152,6 +152,13 @@ button {
   color: var(--muted);
 }
 
+.section-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 label {
   display: grid;
   gap: 7px;
@@ -615,6 +622,11 @@ th {
 .source-pill.google_ads {
   background: #fff5dd;
   color: #9a6500;
+}
+
+.muted-value {
+  color: #8b96a7;
+  font-weight: 700;
 }
 
 @media (max-width: 980px) {

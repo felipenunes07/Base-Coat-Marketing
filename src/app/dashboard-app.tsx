@@ -413,6 +413,9 @@ export default function DashboardApp() {
           <div>
             <p className="eyebrow">Performance table</p>
             <h2>Client and source breakdown</h2>
+            <p className="section-note">
+              Spend-driven metrics appear only where platform spend exists in the dataset.
+            </p>
           </div>
           <div className="sort-control">
             <ArrowDownUp size={15} />
@@ -457,9 +460,9 @@ export default function DashboardApp() {
                       <td><span className={`source-pill ${row.source_key}`}>{row.source}</span></td>
                       <td>{compact(row.leads)}</td>
                       <td>{money(row.won_revenue)}</td>
-                      <td>{row.spend > 0 ? money(row.spend) : 'N/A'}</td>
+                      <td>{row.spend > 0 ? money(row.spend) : <span className="muted-value">No platform spend</span>}</td>
                       <td>{roas(row.roas)}</td>
-                      <td>{cpl ? money(cpl) : 'N/A'}</td>
+                      <td>{cpl ? money(cpl) : <span className="muted-value">N/A</span>}</td>
                       <td>{rowRevenuePerLead ? money(rowRevenuePerLead) : 'N/A'}</td>
                       <td>{compact(row.clicks)}</td>
                       <td>{compact(row.meta_reported_leads)}</td>
