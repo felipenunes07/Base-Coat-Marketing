@@ -52,7 +52,8 @@ function serverClient(accessToken: string) {
   });
 }
 
-function labelSource(sourceKey: string) {
+export function sourceLabel(sourceKey: string | null | undefined, fallback?: string | null) {
+  const normalized = String(sourceKey ?? '').trim().toLowerCase();
   const labels: Record<string, string> = {
     meta_ads: 'Meta',
     google_ads: 'Google',
@@ -61,7 +62,10 @@ function labelSource(sourceKey: string) {
     email: 'Email',
     unknown: 'Unknown'
   };
-  return labels[sourceKey] ?? sourceKey.replaceAll('_', ' ');
+
+  if (labels[normalized]) return labels[normalized];
+  if (fallback?.trim()) return fallback.trim();
+  return normalized ? normalized.replaceAll('_', ' ') : 'Unknown';
 }
 
 function toNumber(value: unknown) {
@@ -90,17 +94,23 @@ function attributeContact(contact: Contact, rules: PlatformRule[]) {
 }
 
 function normalizeRows(rows: SourcePerformanceRow[]) {
-  return rows.map((row) => ({
-    ...row,
-    leads: toNumber(row.leads),
-    won_revenue: toNumber(row.won_revenue),
-    spend: toNumber(row.spend),
-    roas: row.roas === null ? null : toNumber(row.roas),
-    meta_reported_leads: toNumber(row.meta_reported_leads),
-    clicks: toNumber(row.clicks),
-    impressions: toNumber(row.impressions),
-    purchases: toNumber(row.purchases)
-  }));
+  return rows.map((row) => {
+    const normalizedSourceKey = String(row.source_key ?? 'unknown').trim().toLowerCase();
+
+    return {
+      ...row,
+      source_key: normalizedSourceKey,
+      source: sourceLabel(normalizedSourceKey, row.source),
+      leads: toNumber(row.leads),
+      won_revenue: toNumber(row.won_revenue),
+      spend: toNumber(row.spend),
+      roas: row.roas === null ? null : toNumber(row.roas),
+      meta_reported_leads: toNumber(row.meta_reported_leads),
+      clicks: toNumber(row.clicks),
+      impressions: toNumber(row.impressions),
+      purchases: toNumber(row.purchases)
+    };
+  });
 }
 
 export async function getSourcePerformance(
@@ -193,14 +203,15 @@ async function getFallbackPerformance(
 
   const rowMap = new Map<string, SourcePerformanceRow>();
   const getRow = (clientId: string, sourceKey: string) => {
-    const key = `${clientId}:${sourceKey}`;
+    const normalizedSourceKey = String(sourceKey ?? 'unknown').trim().toLowerCase();
+    const key = `${clientId}:${normalizedSourceKey}`;
     const existing = rowMap.get(key);
     if (existing) return existing;
     const row: SourcePerformanceRow = {
       client_id: clientId,
       client_name: clientNames.get(clientId) ?? 'Unknown client',
-      source_key: sourceKey,
-      source: labelSource(sourceKey),
+      source_key: normalizedSourceKey,
+      source: sourceLabel(normalizedSourceKey),
       leads: 0,
       won_revenue: 0,
       spend: 0,

@@ -607,6 +607,8 @@ th {
 }
 
 .source-pill {
+  min-width: 64px;
+  justify-content: center;
   padding: 5px 9px;
   background: var(--slate-soft);
   color: var(--navy);
