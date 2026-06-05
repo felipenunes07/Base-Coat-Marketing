@@ -37,10 +37,6 @@ const defaultStart = '2026-03-01';
 const defaultEnd = '2026-03-31';
 
 function displaySource(row: Pick<SourcePerformanceRow, 'source' | 'source_key'>) {
-  if (row.source?.trim()) {
-    return row.source;
-  }
-
   const labels: Record<string, string> = {
     meta_ads: 'Meta',
     google_ads: 'Google',
@@ -50,7 +46,7 @@ function displaySource(row: Pick<SourcePerformanceRow, 'source' | 'source_key'>)
     unknown: 'Unknown'
   };
 
-  return labels[row.source_key] ?? row.source_key.replaceAll('_', ' ');
+  return labels[row.source_key] ?? row.source?.trim() ?? row.source_key.replaceAll('_', ' ');
 }
 
 export default function DashboardApp() {
