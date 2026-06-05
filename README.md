@@ -85,6 +85,15 @@ npm run test:security
 
 `npm run test:security` is expected to fail until the migration is applied to the Supabase project. After applying it, the expected result is `Tenant isolation checks passed.`
 
+## UI/UX & Premium Overhaul
+
+This dashboard has been visually and interactively overhauled to match the premium corporate identity of **Base Coat Marketing**:
+- **Branding & Logo**: Integrated the official brand logo and custom colors (Midnight Navy `#111625` & Gold `#fbb217`) across the layout.
+- **Paint Roller Loading Screen**: Masked data fetching latency using a custom CSS paint roller animation with floating marketing particle indicators.
+- **Source Badge System**: Color-coded attribution source tags (Google, Meta, SEO, Email, GLSA) for visual clarity.
+- **Detailed Ads Metrics Sidebar**: Grouped detailed calculations into 4 rows inside the sidebar (Clicks, CTR, CPC, CPL, CRM attribution, Purchases, CPA) using a precise decimal formatter.
+- **Local Table Client Filter**: Added a select dropdown next to the sort select box inside the table header to filter breakdown rows independently of global KPIs.
+
 ## Loom prep
 
 - `LOOM_SCRIPT.md` has a 5-minute script.
