@@ -8,8 +8,11 @@ import {
   BarChart3,
   Building2,
   CalendarDays,
+  Compass,
   DollarSign,
+  Globe,
   LogOut,
+  Mail,
   MousePointerClick,
   ShieldCheck,
   Target,
@@ -31,6 +34,22 @@ import { sourceLabel, type SourcePerformanceRow } from '@/lib/source-performance
 import { compact, money, roas, moneyWithCents } from '@/lib/format';
 
 const supabase = createBrowserSupabaseClient();
+
+function MetaIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="3 4 23 16" width="16" height="16" fill="currentColor">
+      <path d="M18.82 5.5C17.16 5.5 15.65 6.42 14.73 7.89C13.84 6.42 12.33 5.5 10.67 5.5C7.23 5.5 4.44 8.29 4.44 11.73C4.44 15.17 7.23 17.96 10.67 17.96C12.33 17.96 13.84 17.04 14.73 15.57C15.65 17.04 17.16 17.96 18.82 17.96C22.26 17.96 25.05 15.17 25.05 11.73C25.05 8.29 22.26 5.5 18.82 5.5ZM10.67 15.57C8.55 15.57 6.83 13.85 6.83 11.73C6.83 9.61 8.55 7.89 10.67 7.89C11.83 7.89 12.87 8.41 13.56 9.22C12.06 10.96 12.06 12.5 13.56 14.24C12.87 15.05 11.83 15.57 10.67 15.57ZM18.82 15.57C17.66 15.57 16.62 15.05 15.93 14.24C17.43 12.5 17.43 10.96 15.93 9.22C16.62 8.41 17.66 7.89 18.82 7.89C20.94 7.89 22.66 9.61 22.66 11.73C22.66 13.85 20.94 15.57 18.82 15.57Z" />
+    </svg>
+  );
+}
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+      <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.113-5.187 4.113-3.328 0-6.027-2.7-6.027-6.027s2.699-6.027 6.027-6.027c1.5 0 2.868.55 3.923 1.545l3.078-3.078C18.966 1.83 15.845 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.48 0 10.74-4.55 10.74-10.92 0-.72-.09-1.41-.24-2.275H12.24z" />
+    </svg>
+  );
+}
 
 type SortKey = 'leads' | 'won_revenue' | 'spend' | 'roas';
 
@@ -1197,7 +1216,7 @@ export default function DashboardApp() {
             className={`nav-item ${activeTab === 'blended' ? 'active' : ''}`}
             onClick={() => selectTab('blended')}
           >
-            <BarChart3 size={18} />
+            <BarChart3 size={16} />
             <span>Overview (Blended)</span>
           </button>
 
@@ -1208,7 +1227,7 @@ export default function DashboardApp() {
             className={`nav-item ${activeTab === 'meta_ads' ? 'active' : ''}`}
             onClick={() => selectTab('meta_ads')}
           >
-            <span className="channel-dot meta"></span>
+            <MetaIcon className="channel-icon meta" />
             <span>Meta Ads</span>
           </button>
 
@@ -1217,7 +1236,7 @@ export default function DashboardApp() {
             className={`nav-item ${activeTab === 'google_ads' ? 'active' : ''}`}
             onClick={() => selectTab('google_ads')}
           >
-            <span className="channel-dot google"></span>
+            <GoogleIcon className="channel-icon google" />
             <span>Google Ads</span>
           </button>
 
@@ -1226,7 +1245,7 @@ export default function DashboardApp() {
             className={`nav-item ${activeTab === 'glsa' ? 'active' : ''}`}
             onClick={() => selectTab('glsa')}
           >
-            <span className="channel-dot glsa"></span>
+            <ShieldCheck size={16} className="channel-icon glsa" />
             <span>GLSA</span>
           </button>
 
@@ -1235,7 +1254,7 @@ export default function DashboardApp() {
             className={`nav-item ${activeTab === 'seo' ? 'active' : ''}`}
             onClick={() => selectTab('seo')}
           >
-            <span className="channel-dot seo"></span>
+            <Globe size={16} className="channel-icon seo" />
             <span>SEO (Organic)</span>
           </button>
 
@@ -1244,7 +1263,7 @@ export default function DashboardApp() {
             className={`nav-item ${activeTab === 'email' ? 'active' : ''}`}
             onClick={() => selectTab('email')}
           >
-            <span className="channel-dot email"></span>
+            <Mail size={16} className="channel-icon email" />
             <span>Email Marketing</span>
           </button>
 
@@ -1253,7 +1272,7 @@ export default function DashboardApp() {
             className={`nav-item ${activeTab === 'unknown' ? 'active' : ''}`}
             onClick={() => selectTab('unknown')}
           >
-            <span className="channel-dot direct"></span>
+            <Compass size={16} className="channel-icon direct" />
             <span>Direct / Unknown</span>
           </button>
         </nav>

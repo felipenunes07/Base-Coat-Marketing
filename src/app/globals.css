@@ -446,24 +446,23 @@ select:focus {
 .nav-item.active svg {
   color: var(--navy);
 }
-
-.channel-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.channel-icon {
+  width: 16px;
+  height: 16px;
   display: inline-block;
   flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.channel-dot.meta { background: #0866ff; }
-.channel-dot.google { background: #fbb217; }
-.channel-dot.glsa { background: #84cc16; }
-.channel-dot.seo { background: #a855f7; }
-.channel-dot.email { background: #0d9488; }
-.channel-dot.direct { background: #64748b; }
+.channel-icon.meta { color: #0866ff; }
+.channel-icon.google { color: #fbb217; }
+.channel-icon.glsa { color: #84cc16; }
+.channel-icon.seo { color: #a855f7; }
+.channel-icon.email { color: #0d9488; }
+.channel-icon.direct { color: #64748b; }
 
-.nav-item.active .channel-dot {
-  border: 1px solid var(--navy);
+.nav-item.active .channel-icon {
+  color: var(--navy) !important;
 }
 
 .sidebar-footer {
