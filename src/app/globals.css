@@ -1215,6 +1215,53 @@ select:focus {
   font-size: 11px;
 }
 
+/* Executive Insights Styled list */
+.executive-insights-box {
+  margin-top: 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.executive-insights-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.insight-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.bullet-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-gold-gradient);
+  margin-top: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px var(--brand-gold);
+}
+
+.insight-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--navy-light);
+}
+
+.insight-text strong {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+
 /* Table Section Styles */
 .table-section {
   background: white;

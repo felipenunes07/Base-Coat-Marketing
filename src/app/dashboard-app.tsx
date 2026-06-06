@@ -53,7 +53,6 @@ export default function DashboardApp() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('leads');
   const [selectedClient, setSelectedClient] = useState('all');
-  const [tableClient, setTableClient] = useState('all');
   
   // Custom navigation tab state
   const [activeTab, setActiveTab] = useState<string>('blended');
@@ -120,38 +119,145 @@ export default function DashboardApp() {
     }
   }, [clientOptions, selectedClient]);
 
-  useEffect(() => {
-    if (tableClient === 'all') return;
-    if (!clientOptions.some((client) => client.id === tableClient)) {
-      setTableClient('all');
-    }
-  }, [clientOptions, tableClient]);
+
 
   const visibleRows = useMemo(() => {
     if (selectedClient === 'all') return rows;
     return rows.filter((row) => row.client_id === selectedClient);
   }, [rows, selectedClient]);
 
-  const sortedRows = useMemo(() => {
-    return [...visibleRows].sort((a, b) => {
-      if (a.client_name !== b.client_name) return a.client_name.localeCompare(b.client_name);
-      const left = sortKey === 'roas' ? a.roas ?? -1 : a[sortKey];
-      const right = sortKey === 'roas' ? b.roas ?? -1 : b[sortKey];
-      return right - left;
-    });
-  }, [visibleRows, sortKey]);
+  // Dynamic client-grouped rows for the current tab (used when selectedClient === 'all')
+  const tabClientGroupedRows = useMemo(() => {
+    const clientsMap = new Map<string, {
+      client_id: string;
+      client_name: string;
+      leads: number;
+      won_revenue: number;
+      spend: number;
+      meta_reported_leads: number;
+      clicks: number;
+      impressions: number;
+      purchases: number;
+      top_channel_name: string;
+      top_channel_val: number;
+    }>();
 
-  const tableRows = useMemo(() => {
-    let filtered = sortedRows;
-    if (activeTab !== 'blended') {
-      filtered = filtered.filter((row) => row.source_key === activeTab);
+    const clientChannels = new Map<string, Map<string, number>>(); // clientId -> channel -> revenue
+
+    const filteredRows = activeTab === 'blended'
+      ? rows
+      : rows.filter((row) => row.source_key === activeTab);
+
+    for (const row of filteredRows) {
+      const current = clientsMap.get(row.client_id) ?? {
+        client_id: row.client_id,
+        client_name: row.client_name,
+        leads: 0,
+        won_revenue: 0,
+        spend: 0,
+        meta_reported_leads: 0,
+        clicks: 0,
+        impressions: 0,
+        purchases: 0,
+        top_channel_name: 'None',
+        top_channel_val: -1
+      };
+
+      current.leads += row.leads;
+      current.won_revenue += row.won_revenue;
+      current.spend += row.spend;
+      current.meta_reported_leads += row.meta_reported_leads;
+      current.clicks += row.clicks;
+      current.impressions += row.impressions || 0;
+      current.purchases += row.purchases;
+      clientsMap.set(row.client_id, current);
+
+      // Track channel revenue
+      let chanMap = clientChannels.get(row.client_id);
+      if (!chanMap) {
+        chanMap = new Map<string, number>();
+        clientChannels.set(row.client_id, chanMap);
+      }
+      chanMap.set(row.source, (chanMap.get(row.source) ?? 0) + row.won_revenue);
     }
-    // Synchronize client filters: Only filter by table-specific dropdown when globally viewing all clients
-    if (selectedClient === 'all' && tableClient !== 'all') {
-      filtered = filtered.filter((row) => row.client_id === tableClient);
+
+    // Assign top channel
+    for (const [clientId, chanMap] of clientChannels.entries()) {
+      const client = clientsMap.get(clientId);
+      if (client) {
+        let topChan = 'None';
+        let maxVal = -1;
+        for (const [chan, rev] of chanMap.entries()) {
+          if (rev > maxVal) {
+            maxVal = rev;
+            topChan = chan;
+          }
+        }
+        client.top_channel_name = topChan;
+        client.top_channel_val = maxVal;
+      }
     }
-    return filtered;
-  }, [sortedRows, activeTab, tableClient, selectedClient]);
+
+    return Array.from(clientsMap.values());
+  }, [rows, activeTab]);
+
+  // Sorted client-grouped rows for the table
+  const sortedTabClientGroupedRows = useMemo(() => {
+    return [...tabClientGroupedRows].sort((a, b) => {
+      const left = sortKey === 'roas' ? (a.spend > 0 ? a.won_revenue / a.spend : -1) : a[sortKey as keyof typeof a] as number;
+      const right = sortKey === 'roas' ? (b.spend > 0 ? b.won_revenue / b.spend : -1) : b[sortKey as keyof typeof b] as number;
+      return (right as number) - (left as number);
+    });
+  }, [tabClientGroupedRows, sortKey]);
+
+  // Dynamic channel-grouped rows for the selected client (used when activeTab === 'blended' && selectedClient !== 'all')
+  const tabChannelGroupedRows = useMemo(() => {
+    const channelsMap = new Map<string, {
+      source_key: string;
+      source: string;
+      leads: number;
+      won_revenue: number;
+      spend: number;
+      meta_reported_leads: number;
+      clicks: number;
+      impressions: number;
+      purchases: number;
+    }>();
+
+    for (const row of visibleRows) {
+      const current = channelsMap.get(row.source_key) ?? {
+        source_key: row.source_key,
+        source: row.source,
+        leads: 0,
+        won_revenue: 0,
+        spend: 0,
+        meta_reported_leads: 0,
+        clicks: 0,
+        impressions: 0,
+        purchases: 0
+      };
+
+      current.leads += row.leads;
+      current.won_revenue += row.won_revenue;
+      current.spend += row.spend;
+      current.meta_reported_leads += row.meta_reported_leads;
+      current.clicks += row.clicks;
+      current.impressions += row.impressions || 0;
+      current.purchases += row.purchases;
+      channelsMap.set(row.source_key, current);
+    }
+
+    return Array.from(channelsMap.values());
+  }, [visibleRows]);
+
+  // Sorted channel-grouped rows for the table
+  const sortedTabChannelGroupedRows = useMemo(() => {
+    return [...tabChannelGroupedRows].sort((a, b) => {
+      const left = sortKey === 'roas' ? (a.spend > 0 ? a.won_revenue / a.spend : -1) : a[sortKey as keyof typeof a] as number;
+      const right = sortKey === 'roas' ? (b.spend > 0 ? b.won_revenue / b.spend : -1) : b[sortKey as keyof typeof b] as number;
+      return (right as number) - (left as number);
+    });
+  }, [tabChannelGroupedRows, sortKey]);
 
   // Aggregate metrics based on the current selection and active tab
   const channelTotals = useMemo(() => {
@@ -178,6 +284,7 @@ export default function DashboardApp() {
   const channelRevenuePerLead = channelTotals.leads > 0 ? channelTotals.revenue / channelTotals.leads : null;
   const channelCpl = channelTotals.leads > 0 ? channelTotals.spend / channelTotals.leads : null;
 
+
   // Meta Ads specific metrics
   const channelMetaCtr = channelTotals.impressions > 0 ? (channelTotals.clicks / channelTotals.impressions) * 100 : 0;
   const channelMetaCpc = channelTotals.clicks > 0 ? channelTotals.spend / channelTotals.clicks : null;
@@ -197,8 +304,7 @@ export default function DashboardApp() {
         : clientOptions[0]?.name ?? 'Client account'
       : clientOptions.find((client) => client.id === selectedClient)?.name ?? 'Selected client';
 
-  // Contextual column toggle for client scope
-  const showClientColumn = isAgency && selectedClient === 'all';
+
 
   // Client summaries filtered by channel for comparison tiles
   const channelClientSummaries = useMemo(() => {
@@ -225,14 +331,6 @@ export default function DashboardApp() {
 
     return Array.from(summaryMap.values()).sort((a, b) => b.revenue - a.revenue);
   }, [rows, activeTab]);
-
-  const sourceInsights = useMemo(
-    () =>
-      [...visibleRows]
-        .sort((a, b) => b.won_revenue - a.won_revenue || b.leads - a.leads)
-        .slice(0, 4),
-    [visibleRows]
-  );
 
   // Grouped charts rows
   const chartRows = useMemo(() => {
@@ -275,6 +373,47 @@ export default function DashboardApp() {
       }
     }
   };
+
+  // Automated performance readout insights
+  const executiveInsights = useMemo(() => {
+    const channelRevenues = chartRows.map(r => ({ name: r.name, revenue: r.revenue, leads: r.leads }));
+    const topChannel = channelRevenues.length > 0 
+      ? channelRevenues.reduce((max, r) => r.revenue > max.revenue ? r : max, { name: '', revenue: -1, leads: 0 })
+      : null;
+      
+    const organicRevenue = visibleRows
+      .filter(r => r.source_key === 'seo' || r.source_key === 'email' || r.source_key === 'unknown')
+      .reduce((sum, r) => sum + r.won_revenue, 0);
+      
+    const googleRow = visibleRows.find(r => r.source_key === 'google_ads');
+    const googleRevPerLead = googleRow && googleRow.leads > 0 ? googleRow.won_revenue / googleRow.leads : 0;
+
+    const insights = [];
+    if (topChannel && topChannel.revenue > 0) {
+      const pct = channelTotals.revenue > 0 ? (topChannel.revenue / channelTotals.revenue) * 100 : 0;
+      insights.push(
+        `**${topChannel.name}** is your primary revenue engine, contributing **${money(topChannel.revenue)}** (${pct.toFixed(0)}% of total blended revenue) from **${topChannel.leads}** attributed CRM leads.`
+      );
+    }
+    
+    if (organicRevenue > 0) {
+      insights.push(
+        `Organic channels (SEO, Email, and Direct traffic) generated a combined **${money(organicRevenue)}** in won revenue with **zero platform ad spend**.`
+      );
+    }
+    
+    if (googleRow && googleRow.leads > 0) {
+      insights.push(
+        `**Google Ads** generated **${googleRow.leads}** CRM leads with an average value of **${money(googleRevPerLead)}** per lead, demonstrating steady customer intent.`
+      );
+    } else {
+      insights.push(
+        `No leads were captured from paid Google search during this period. Consider verifying Google tracking tags.`
+      );
+    }
+    
+    return insights;
+  }, [visibleRows, chartRows, channelTotals]);
 
   if (!session) {
     return (
@@ -433,28 +572,26 @@ export default function DashboardApp() {
           </aside>
         </section>
 
-        {/* Insight readout */}
+        {/* Dynamic Executive Insights (in place of duplicated tiles) */}
         <section className="insight-section">
           <div className="section-heading">
-            <p className="eyebrow">Source Readout</p>
-            <h2>What is driving the report</h2>
+            <p className="eyebrow">Executive Insights</p>
+            <h2>Performance Readout</h2>
           </div>
-          <div className="insight-grid">
-            {sourceInsights.map((row) => {
-              const revenuePerLead = row.leads > 0 ? row.won_revenue / row.leads : 0;
-              return (
-                <div className="insight-tile" key={`${row.client_id}-${row.source_key}-insight`}>
-                  <div>
-                    <span className={`source-pill ${row.source_key}`}>{displaySource(row)}</span>
-                    <p>{row.client_name}</p>
-                  </div>
-                  <strong>{money(row.won_revenue)}</strong>
-                  <small>
-                    {compact(row.leads)} leads · {money(revenuePerLead)} / lead
-                  </small>
-                </div>
-              );
-            })}
+          <div className="executive-insights-box">
+            <ul>
+              {executiveInsights.map((insight, idx) => {
+                const parts = insight.split('**');
+                return (
+                  <li key={idx} className="insight-bullet">
+                    <span className="bullet-dot"></span>
+                    <p className="insight-text">
+                      {parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </section>
 
@@ -791,28 +928,34 @@ export default function DashboardApp() {
   }
 
   function renderTableSection() {
+    // If not the blended tab, and we have scoped to a single client, don't show the redundant table.
+    if (activeTab !== 'blended' && selectedClient !== 'all') {
+      return null;
+    }
+
+    const displayRows = activeTab === 'blended'
+      ? (selectedClient === 'all' ? sortedTabClientGroupedRows : sortedTabChannelGroupedRows)
+      : sortedTabClientGroupedRows;
+
     return (
       <section className="table-section">
         <div className="table-header">
           <div>
             <p className="eyebrow">Performance Table</p>
-            <h2>{activeTab === 'blended' ? 'Client and Source Breakdown' : `${sourceLabel(activeTab)} breakdown`}</h2>
+            <h2>
+              {activeTab === 'blended'
+                ? (selectedClient === 'all' ? 'Client Performance Breakdown' : 'Channel Performance Breakdown')
+                : `${sourceLabel(activeTab)} Breakdown by Client`
+              }
+            </h2>
             <p className="section-note">
-              Spend-driven metrics appear only where platform spend exists in the dataset.
+              {activeTab === 'blended' && selectedClient === 'all'
+                ? 'Click on any client row to drill down into their specific account performance.'
+                : 'Spend-driven metrics appear only where platform spend exists.'
+              }
             </p>
           </div>
           <div className="table-controls">
-            {isAgency && selectedClient === 'all' && (
-              <div className="table-filter-control">
-                <Building2 size={15} />
-                <select value={tableClient} onChange={(event) => setTableClient(event.target.value)}>
-                  <option value="all">All clients</option>
-                  {clientOptions.map((client) => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div className="sort-control">
               <ArrowDownUp size={15} />
               <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
@@ -837,10 +980,10 @@ export default function DashboardApp() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={12} className="table-loading-text">Loading performance...</td></tr>
-              ) : tableRows.length === 0 ? (
+              ) : displayRows.length === 0 ? (
                 <tr><td colSpan={12} className="table-empty-text">No data for this range.</td></tr>
               ) : (
-                tableRows.map((row) => renderTableRow(row))
+                displayRows.map((row) => renderTableRow(row))
               )}
             </tbody>
           </table>
@@ -850,23 +993,37 @@ export default function DashboardApp() {
   }
 
   function renderTableHeader() {
-    const clientHeader = showClientColumn ? <th>Client</th> : null;
     if (activeTab === 'blended') {
-      return (
-        <tr>
-          {clientHeader}
-          <th>Source</th>
-          <th>Leads</th>
-          <th>Won Revenue</th>
-          <th>Platform Spend</th>
-          <th>ROAS</th>
-          <th>Revenue / Lead</th>
-        </tr>
-      );
+      if (selectedClient === 'all') {
+        return (
+          <tr>
+            <th style={{ textAlign: 'left' }}>Client</th>
+            <th>Leads</th>
+            <th>Won Revenue</th>
+            <th>Platform Spend</th>
+            <th>Blended ROAS</th>
+            <th>Revenue / Lead</th>
+            <th>Blended CPL</th>
+            <th style={{ textAlign: 'left' }}>Top Channel</th>
+          </tr>
+        );
+      } else {
+        return (
+          <tr>
+            <th style={{ textAlign: 'left' }}>Channel</th>
+            <th>Leads</th>
+            <th>Won Revenue</th>
+            <th>Platform Spend</th>
+            <th>ROAS</th>
+            <th>Revenue / Lead</th>
+            <th>CPL</th>
+          </tr>
+        );
+      }
     } else if (activeTab === 'meta_ads') {
       return (
         <tr>
-          {clientHeader}
+          <th style={{ textAlign: 'left' }}>Client</th>
           <th>CRM Leads</th>
           <th>Won Revenue</th>
           <th>Meta Spend</th>
@@ -881,10 +1038,10 @@ export default function DashboardApp() {
         </tr>
       );
     } else {
-      // General channels
+      // General channels (Google Ads, GLSA, SEO, Email, Direct)
       return (
         <tr>
-          {clientHeader}
+          <th style={{ textAlign: 'left' }}>Client</th>
           <th>CRM Leads</th>
           <th>Won Revenue</th>
           <th>Revenue / Lead</th>
@@ -893,43 +1050,73 @@ export default function DashboardApp() {
     }
   }
 
-  function renderTableRow(row: SourcePerformanceRow) {
-    const key = `${row.client_id}-${row.source_key}`;
-    const rowRevenuePerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
-    const clientCell = showClientColumn ? <td>{row.client_name}</td> : null;
-    
+  function renderTableRow(row: any) {
     if (activeTab === 'blended') {
-      return (
-        <tr key={key}>
-          {clientCell}
-          <td><span className={`source-pill ${row.source_key}`}>{displaySource(row)}</span></td>
-          <td>{compact(row.leads)}</td>
-          <td>{money(row.won_revenue)}</td>
-          <td>
-            {row.spend > 0 ? money(row.spend) : (
-              <span className="muted-value">No spend data</span>
-            )}
-          </td>
-          <td>{roas(row.roas)}</td>
-          <td>{rowRevenuePerLead ? money(rowRevenuePerLead) : 'N/A'}</td>
-        </tr>
-      );
+      if (selectedClient === 'all') {
+        const clientRoas = row.spend > 0 ? row.won_revenue / row.spend : null;
+        const revPerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
+        const cpl = row.leads > 0 ? row.spend / row.leads : null;
+        
+        return (
+          <tr 
+            key={row.client_id} 
+            onClick={() => setSelectedClient(row.client_id)}
+            style={{ cursor: 'pointer' }}
+            title="Click to view scoped client dashboard"
+          >
+            <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold-dark)' }}>
+              {row.client_name}
+            </td>
+            <td>{compact(row.leads)}</td>
+            <td>{money(row.won_revenue)}</td>
+            <td>{row.spend > 0 ? money(row.spend) : <span className="muted-value">No spend</span>}</td>
+            <td>{roas(clientRoas)}</td>
+            <td>{revPerLead ? money(revPerLead) : 'N/A'}</td>
+            <td>{cpl ? moneyWithCents(cpl) : 'N/A'}</td>
+            <td style={{ textAlign: 'left' }}>
+              <span className={`source-pill ${row.top_channel_name.toLowerCase().replace(' ', '_')}`}>
+                {row.top_channel_name}
+              </span>
+            </td>
+          </tr>
+        );
+      } else {
+        const channelRoas = row.spend > 0 ? row.won_revenue / row.spend : null;
+        const revPerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
+        const cpl = row.leads > 0 ? row.spend / row.leads : null;
+        
+        return (
+          <tr key={row.source_key}>
+            <td style={{ textAlign: 'left' }}>
+              <span className={`source-pill ${row.source_key}`}>
+                {row.source}
+              </span>
+            </td>
+            <td>{compact(row.leads)}</td>
+            <td>{money(row.won_revenue)}</td>
+            <td>{row.spend > 0 ? money(row.spend) : <span className="muted-value">No spend</span>}</td>
+            <td>{roas(channelRoas)}</td>
+            <td>{revPerLead ? money(revPerLead) : 'N/A'}</td>
+            <td>{cpl ? moneyWithCents(cpl) : 'N/A'}</td>
+          </tr>
+        );
+      }
     } else if (activeTab === 'meta_ads') {
-      const ctc = row.impressions > 0 ? (row.clicks / row.impressions) * 100 : 0;
+      const ctr = row.impressions > 0 ? (row.clicks / row.impressions) * 100 : 0;
       const cpc = row.clicks > 0 ? row.spend / row.clicks : null;
       const cpl = row.meta_reported_leads > 0 ? row.spend / row.meta_reported_leads : null;
       const cpa = row.purchases > 0 ? row.spend / row.purchases : null;
       
       return (
-        <tr key={key}>
-          {clientCell}
+        <tr key={row.client_id}>
+          <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold-dark)' }}>{row.client_name}</td>
           <td>{compact(row.leads)}</td>
           <td>{money(row.won_revenue)}</td>
           <td>{money(row.spend)}</td>
           <td>{roas(row.roas)}</td>
           <td>{compact(row.clicks)}</td>
           <td>{compact(row.impressions)}</td>
-          <td>{ctc > 0 ? `${ctc.toFixed(2)}%` : '0%'}</td>
+          <td>{ctr > 0 ? `${ctr.toFixed(2)}%` : '0%'}</td>
           <td>{moneyWithCents(cpc)}</td>
           <td>{moneyWithCents(cpl)}</td>
           <td>{compact(row.purchases)}</td>
@@ -937,13 +1124,13 @@ export default function DashboardApp() {
         </tr>
       );
     } else {
-      // General channels
+      const revPerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
       return (
-        <tr key={key}>
-          {clientCell}
+        <tr key={row.client_id}>
+          <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold-dark)' }}>{row.client_name}</td>
           <td>{compact(row.leads)}</td>
           <td>{money(row.won_revenue)}</td>
-          <td>{rowRevenuePerLead ? money(rowRevenuePerLead) : 'N/A'}</td>
+          <td>{revPerLead ? money(revPerLead) : 'N/A'}</td>
         </tr>
       );
     }
@@ -953,13 +1140,11 @@ export default function DashboardApp() {
     return (
       <div className="paint-loader-overlay">
         <div className="paint-loader-container">
-          <div className="paint-roller-wrapper">
-            <div className="paint-trail"></div>
-            <div className="paint-roller">
-              <div className="roller-cylinder"></div>
-              <div className="roller-handle-wire"></div>
-              <div className="roller-handle-grip"></div>
-            </div>
+          <div className="paint-trail"></div>
+          <div className="paint-roller">
+            <div className="roller-cylinder"></div>
+            <div className="roller-handle-wire"></div>
+            <div className="roller-handle-grip"></div>
           </div>
           <div className="paint-loader-text">
             <h3>Rolling out ads performance...</h3>
