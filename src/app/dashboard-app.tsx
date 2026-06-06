@@ -1159,11 +1159,13 @@ export default function DashboardApp() {
     return (
       <div className="paint-loader-overlay">
         <div className="paint-loader-container">
-          <div className="paint-trail"></div>
-          <div className="paint-roller">
-            <div className="roller-cylinder"></div>
-            <div className="roller-handle-wire"></div>
-            <div className="roller-handle-grip"></div>
+          <div className="paint-roller-wrapper">
+            <div className="paint-trail"></div>
+            <div className="paint-roller">
+              <div className="roller-cylinder"></div>
+              <div className="roller-handle-wire"></div>
+              <div className="roller-handle-grip"></div>
+            </div>
           </div>
           <div className="paint-loader-text">
             <h3>Rolling out ads performance...</h3>
