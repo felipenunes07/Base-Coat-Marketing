@@ -971,8 +971,8 @@ select:focus {
   letter-spacing: 0.5px;
 }
 
-.channel-indicator-badge.meta { background: rgba(8, 102, 255, 0.1); color: #0866ff; }
-.channel-indicator-badge.google_ads { background: rgba(251, 178, 23, 0.1); color: #d9930c; }
+.channel-indicator-badge.meta, .channel-indicator-badge.meta_ads { background: rgba(8, 102, 255, 0.1); color: #0866ff; }
+.channel-indicator-badge.google, .channel-indicator-badge.google_ads { background: rgba(251, 178, 23, 0.1); color: #d9930c; }
 .channel-indicator-badge.glsa { background: rgba(132, 204, 22, 0.1); color: #65a30d; }
 .channel-indicator-badge.seo { background: rgba(168, 85, 247, 0.1); color: #7c3aed; }
 .channel-indicator-badge.email { background: rgba(13, 148, 136, 0.1); color: #0f766e; }
@@ -1522,10 +1522,22 @@ td:nth-child(2) {
 }
 
 /* --- Responsive Layout Adjustments --- */
-@media (max-width: 1200px) {
+body {
+  overflow-x: hidden;
+}
+
+.dashboard-container {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+@media (max-width: 1440px) {
   .kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+@media (max-width: 1200px) {
   .meta-kpi-groups {
     grid-template-columns: 1fr;
   }
@@ -1628,6 +1640,10 @@ td:nth-child(2) {
     justify-content: space-between;
   }
 
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .kpi-grid-three {
     grid-template-columns: 1fr;
   }
@@ -1641,10 +1657,6 @@ td:nth-child(2) {
   .main-content {
     padding: 16px;
   }
-  
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
 
   .insight-grid {
     grid-template-columns: 1fr;
@@ -1653,5 +1665,28 @@ td:nth-child(2) {
   .table-header {
     flex-direction: column;
     gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header-filters {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .filter-dropdown-wrap,
+  .filter-date-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filter-date-wrap input {
+    width: 40%;
+    text-align: right;
   }
 }

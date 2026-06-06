@@ -146,9 +146,12 @@ export default function DashboardApp() {
     if (activeTab !== 'blended') {
       filtered = filtered.filter((row) => row.source_key === activeTab);
     }
-    if (tableClient === 'all') return filtered;
-    return filtered.filter((row) => row.client_id === tableClient);
-  }, [sortedRows, activeTab, tableClient]);
+    // Synchronize client filters: Only filter by table-specific dropdown when globally viewing all clients
+    if (selectedClient === 'all' && tableClient !== 'all') {
+      filtered = filtered.filter((row) => row.client_id === tableClient);
+    }
+    return filtered;
+  }, [sortedRows, activeTab, tableClient, selectedClient]);
 
   // Aggregate metrics based on the current selection and active tab
   const channelTotals = useMemo(() => {
@@ -181,7 +184,12 @@ export default function DashboardApp() {
   const channelMetaCpa = channelTotals.purchases > 0 ? channelTotals.spend / channelTotals.purchases : null;
   const channelCostPerMetaLead = channelTotals.metaLeads > 0 ? channelTotals.spend / channelTotals.metaLeads : null;
 
-  const isAgency = clientOptions.length > 1;
+  // Derive role checking email first to prevent layout flashing, falling back to loaded client counts
+  const isAgency = useMemo(() => {
+    if (session?.user?.email === 'agency@skilltest.dev') return true;
+    return clientOptions.length > 1;
+  }, [session, clientOptions]);
+
   const scopeLabel =
     selectedClient === 'all'
       ? isAgency
@@ -257,6 +265,16 @@ export default function DashboardApp() {
       return Array.from(grouped.values()).sort((a, b) => b.leads - a.leads);
     }
   }, [visibleRows, activeTab]);
+
+  // Tab Selection Handler (Resets Sort state to Leads when heading to unpaid channels)
+  const selectTab = (tab: string) => {
+    setActiveTab(tab);
+    if (tab !== 'blended' && tab !== 'meta_ads') {
+      if (sortKey === 'spend' || sortKey === 'roas') {
+        setSortKey('leads');
+      }
+    }
+  };
 
   if (!session) {
     return (
@@ -451,7 +469,9 @@ export default function DashboardApp() {
       <>
         {/* Intro banner */}
         <div className="channel-intro-banner meta">
-          <div className="banner-logo">🔵</div>
+          <div className="banner-logo">
+            <BarChart3 size={22} style={{ color: '#0866ff' }} />
+          </div>
           <div className="banner-text">
             <h3>Meta Ads Performance Workspace</h3>
             <p>Direct API metrics compared with CRM lead tracking and closed-won opportunity attribution.</p>
@@ -461,7 +481,10 @@ export default function DashboardApp() {
         {/* KPI Subgrids grouped logically */}
         <div className="meta-kpi-groups">
           <div className="kpi-group-card">
-            <h4>💰 Financial Performance</h4>
+            <h4>
+              <DollarSign size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />
+              Financial Performance
+            </h4>
             <div className="kpi-subgrid-dense">
               <div className="dense-kpi">
                 <span className="dense-label">Won Revenue</span>
@@ -483,7 +506,10 @@ export default function DashboardApp() {
           </div>
 
           <div className="kpi-group-card">
-            <h4>⚡ Funnel & Ad Delivery</h4>
+            <h4>
+              <BarChart3 size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />
+              Funnel & Ad Delivery
+            </h4>
             <div className="kpi-subgrid-dense">
               <div className="dense-kpi">
                 <span className="dense-label">Impressions</span>
@@ -505,7 +531,10 @@ export default function DashboardApp() {
           </div>
 
           <div className="kpi-group-card">
-            <h4>🎯 Conversions & Attribution</h4>
+            <h4>
+              <Target size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />
+              Conversions & Attribution
+            </h4>
             <div className="kpi-subgrid-dense">
               <div className="dense-kpi">
                 <span className="dense-label">Meta Reported Leads</span>
@@ -635,35 +664,35 @@ export default function DashboardApp() {
           return {
             title: 'Google Ads Search Network',
             desc: 'Paid Google search traffic tracked via UTM tagging and CRM ingestion. Helps monitor lead generation and client revenue from Google search campaigns.',
-            icon: '🟡',
+            icon: <Target size={22} style={{ color: '#fbb217' }} />,
             accent: 'google'
           };
         case 'glsa':
           return {
             title: 'Google Local Services Ads (GLSA)',
             desc: 'Pay-per-lead phone calls and bookings verified by Google. Focuses on hyper-local client requests and direct call attribution.',
-            icon: '🟢',
+            icon: <Building2 size={22} style={{ color: '#84cc16' }} />,
             accent: 'glsa'
           };
         case 'seo':
           return {
             title: 'Search Engine Optimization (Organic SEO)',
             desc: 'Non-paid organic search query acquisitions. All leads and opportunities are driven naturally, carrying zero advertising costs and yielding optimal profit margins.',
-            icon: '🟣',
+            icon: <TrendingUp size={22} style={{ color: '#a855f7' }} />,
             accent: 'seo'
           };
         case 'email':
           return {
             title: 'Email Outreach & Newsletters',
             desc: 'Attributed leads originating from outbound prospect lists, newsletter campaigns, and customer retention flows.',
-            icon: '✉️',
+            icon: <MousePointerClick size={22} style={{ color: '#0d9488' }} />,
             accent: 'email'
           };
         default:
           return {
             title: 'Direct / Unattributed traffic',
             desc: 'Direct website entries, general word-of-mouth referrers, or client walk-ins lacking campaign tracking parameters.',
-            icon: '⚙️',
+            icon: <Users size={22} style={{ color: '#64748b' }} />,
             accent: 'unknown'
           };
       }
@@ -773,7 +802,7 @@ export default function DashboardApp() {
             </p>
           </div>
           <div className="table-controls">
-            {clientOptions.length > 1 && (
+            {isAgency && selectedClient === 'all' && (
               <div className="table-filter-control">
                 <Building2 size={15} />
                 <select value={tableClient} onChange={(event) => setTableClient(event.target.value)}>
@@ -965,9 +994,15 @@ export default function DashboardApp() {
             <Users size={14} />
             <span>{session.user.email}</span>
           </div>
-          <div className={`scope-badge ${isAgency ? 'agency' : 'client'}`}>
-            {isAgency ? 'Agency Partner' : 'Client Access'}
-          </div>
+          {rows.length > 0 ? (
+            <div className={`scope-badge ${isAgency ? 'agency' : 'client'}`}>
+              {isAgency ? 'Agency Partner' : 'Client Access'}
+            </div>
+          ) : (
+            <div className="scope-badge loading">
+              Detecting scope...
+            </div>
+          )}
         </div>
 
         <nav className="sidebar-nav">
@@ -975,7 +1010,7 @@ export default function DashboardApp() {
           <button
             type="button"
             className={`nav-item ${activeTab === 'blended' ? 'active' : ''}`}
-            onClick={() => setActiveTab('blended')}
+            onClick={() => selectTab('blended')}
           >
             <BarChart3 size={18} />
             <span>Overview (Blended)</span>
@@ -986,7 +1021,7 @@ export default function DashboardApp() {
           <button
             type="button"
             className={`nav-item ${activeTab === 'meta_ads' ? 'active' : ''}`}
-            onClick={() => setActiveTab('meta_ads')}
+            onClick={() => selectTab('meta_ads')}
           >
             <span className="channel-dot meta"></span>
             <span>Meta Ads</span>
@@ -995,7 +1030,7 @@ export default function DashboardApp() {
           <button
             type="button"
             className={`nav-item ${activeTab === 'google_ads' ? 'active' : ''}`}
-            onClick={() => setActiveTab('google_ads')}
+            onClick={() => selectTab('google_ads')}
           >
             <span className="channel-dot google"></span>
             <span>Google Ads</span>
@@ -1004,7 +1039,7 @@ export default function DashboardApp() {
           <button
             type="button"
             className={`nav-item ${activeTab === 'glsa' ? 'active' : ''}`}
-            onClick={() => setActiveTab('glsa')}
+            onClick={() => selectTab('glsa')}
           >
             <span className="channel-dot glsa"></span>
             <span>GLSA</span>
@@ -1013,7 +1048,7 @@ export default function DashboardApp() {
           <button
             type="button"
             className={`nav-item ${activeTab === 'seo' ? 'active' : ''}`}
-            onClick={() => setActiveTab('seo')}
+            onClick={() => selectTab('seo')}
           >
             <span className="channel-dot seo"></span>
             <span>SEO (Organic)</span>
@@ -1022,7 +1057,7 @@ export default function DashboardApp() {
           <button
             type="button"
             className={`nav-item ${activeTab === 'email' ? 'active' : ''}`}
-            onClick={() => setActiveTab('email')}
+            onClick={() => selectTab('email')}
           >
             <span className="channel-dot email"></span>
             <span>Email Marketing</span>
@@ -1031,7 +1066,7 @@ export default function DashboardApp() {
           <button
             type="button"
             className={`nav-item ${activeTab === 'unknown' ? 'active' : ''}`}
-            onClick={() => setActiveTab('unknown')}
+            onClick={() => selectTab('unknown')}
           >
             <span className="channel-dot direct"></span>
             <span>Direct / Unknown</span>
