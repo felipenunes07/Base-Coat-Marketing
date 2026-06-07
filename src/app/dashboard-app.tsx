@@ -13,8 +13,10 @@ import {
   Globe,
   LogOut,
   Mail,
+  Moon,
   MousePointerClick,
   ShieldCheck,
+  Sun,
   Target,
   TrendingUp,
   Users
@@ -22,6 +24,7 @@ import {
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -60,6 +63,36 @@ function displaySource(row: Pick<SourcePerformanceRow, 'source' | 'source_key'>)
   return sourceLabel(row.source_key, row.source);
 }
 
+function getInsightMeta(text: string) {
+  const lower = text.toLowerCase();
+  if (lower.includes('meta')) {
+    return {
+      type: 'meta',
+      title: 'Meta Ads Insights',
+      icon: <TrendingUp size={16} />
+    };
+  }
+  if (lower.includes('google')) {
+    return {
+      type: 'google',
+      title: 'Google Ads Insights',
+      icon: <Target size={16} />
+    };
+  }
+  if (lower.includes('organic') || lower.includes('seo') || lower.includes('email') || lower.includes('direct')) {
+    return {
+      type: 'organic',
+      title: 'Organic Growth Insights',
+      icon: <Globe size={16} />
+    };
+  }
+  return {
+    type: 'general',
+    title: 'Executive Readout',
+    icon: <BarChart3 size={16} />
+  };
+}
+
 export default function DashboardApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('agency@skilltest.dev');
@@ -75,6 +108,8 @@ export default function DashboardApp() {
   
   // Custom navigation tab state
   const [activeTab, setActiveTab] = useState<string>('blended');
+  const [overviewMetric, setOverviewMetric] = useState<'revenue' | 'leads'>('revenue');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -491,119 +526,241 @@ export default function DashboardApp() {
       <>
         {/* KPI Cards Grid */}
         <section className="kpi-grid">
-          <Metric label="CRM Leads" value={compact(channelTotals.leads)} icon={<Users size={18} />} />
-          <Metric label="Won Revenue" value={money(channelTotals.revenue)} icon={<DollarSign size={18} />} />
-          <Metric label="Total Spend" value={money(channelTotals.spend)} icon={<BarChart3 size={18} />} />
-          <Metric label="Blended ROAS" value={roas(channelBlendedRoas)} icon={<TrendingUp size={18} />} />
-          <Metric label="Revenue / Lead" value={channelRevenuePerLead ? money(channelRevenuePerLead) : 'N/A'} icon={<Target size={18} />} />
-          <Metric label="Blended CPL" value={channelCpl ? moneyWithCents(channelCpl) : 'N/A'} icon={<DollarSign size={18} />} />
+          <Metric label="CRM Leads" value={compact(channelTotals.leads)} icon={<Users size={16} />} className="metric-leads" />
+          <Metric label="Won Revenue" value={money(channelTotals.revenue)} icon={<DollarSign size={16} />} className="metric-revenue" />
+          <Metric label="Total Spend" value={money(channelTotals.spend)} icon={<BarChart3 size={16} />} className="metric-spend" />
+          <Metric label="Blended ROAS" value={roas(channelBlendedRoas)} icon={<TrendingUp size={16} />} className="metric-roas" />
+          <Metric label="Revenue / Lead" value={channelRevenuePerLead ? money(channelRevenuePerLead) : 'N/A'} icon={<Target size={16} />} className="metric-rev-lead" />
+          <Metric label="Blended CPL" value={channelCpl ? moneyWithCents(channelCpl) : 'N/A'} icon={<DollarSign size={16} />} className="metric-cpl" />
         </section>
 
-        {/* Client Comparison for Agency Overview */}
-        {isAgency && selectedClient === 'all' && (
-          <section className="client-comparison">
+        {/* Channel Performance — Chart + Breakdown Cards (unified) */}
+        <section className="channel-overview-card">
+          <div className="card-header-flex">
             <div className="section-heading">
-              <p className="eyebrow">Agency Overview</p>
-              <h2>Client Comparison (Blended)</h2>
+              <p className="eyebrow">Attribution Overview</p>
+              <h2>Channel Performance</h2>
             </div>
-            <div className="client-grid">
-              {channelClientSummaries.map((client) => {
-                const clientRoas = client.spend > 0 ? client.revenue / client.spend : null;
-                return (
-                  <button
-                    className="client-tile"
-                    key={client.id}
-                    onClick={() => setSelectedClient(client.id)}
-                    type="button"
-                  >
-                    <span>{client.name}</span>
-                    <strong>{money(client.revenue)}</strong>
-                    <small>{compact(client.leads)} leads · {money(client.spend)} spend · {roas(clientRoas)} ROAS</small>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Visual Charts & Channel Summary */}
-        <section className="workspace">
-          <div className="chart-panel">
-            <div className="section-heading">
-              <p className="eyebrow">Attribution Split</p>
-              <h2>Leads & Revenue by Channel</h2>
-            </div>
-            <div className="chart-frame">
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={chartRows} margin={{ top: 10, right: 5, left: -10, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fbb217" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#d9930c" stopOpacity={0.85} />
-                    </linearGradient>
-                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#1e293b" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#0f172a" stopOpacity={0.9} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={{ background: '#0f172a', borderRadius: '8px', border: 'none', color: 'white' }}
-                    labelStyle={{ fontWeight: 'bold', color: '#fbb217' }}
-                    formatter={(value, name) =>
-                      name === 'Revenue' ? [money(Number(value)), 'Won Revenue'] : [compact(Number(value)), 'CRM Leads']
-                    }
-                  />
-                  <Legend iconType="circle" />
-                  <Bar yAxisId="left" dataKey="leads" name="Leads" fill="url(#leadsGradient)" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Bar yAxisId="right" dataKey="revenue" name="Revenue" fill="url(#revenueGradient)" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+            
+            <div className="metric-toggle-group">
+              <button 
+                type="button"
+                className={`toggle-btn ${overviewMetric === 'revenue' ? 'active' : ''}`}
+                onClick={() => setOverviewMetric('revenue')}
+              >
+                <DollarSign size={14} />
+                <span>Won Revenue</span>
+              </button>
+              <button 
+                type="button"
+                className={`toggle-btn ${overviewMetric === 'leads' ? 'active' : ''}`}
+                onClick={() => setOverviewMetric('leads')}
+              >
+                <Users size={14} />
+                <span>CRM Leads</span>
+              </button>
             </div>
           </div>
 
-          <aside className="channel-share-panel">
-            <p className="eyebrow">Channel Share</p>
-            <h2>Distribution</h2>
-            <div className="channel-share-list">
+          <div className="channel-overview-layout">
+            {/* Esquerda: O Gráfico */}
+            <div className="chart-frame">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={chartRows} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="meta_adsGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#3b82f6" : "#4f7db3"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#0866ff" : "#2c507a"} stopOpacity={0.85} />
+                    </linearGradient>
+                    <linearGradient id="google_adsGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#e5b858"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#b58928"} stopOpacity={0.85} />
+                    </linearGradient>
+                    <linearGradient id="glsaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#a3e635" : "#8cb954"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#65a30d" : "#5c862a"} stopOpacity={0.85} />
+                    </linearGradient>
+                    <linearGradient id="seoGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#c084fc" : "#a58dbf"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#7c3aed" : "#745a90"} stopOpacity={0.85} />
+                    </linearGradient>
+                    <linearGradient id="emailGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#2dd4bf" : "#63ada5"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#0f766e" : "#34766f"} stopOpacity={0.85} />
+                    </linearGradient>
+                    <linearGradient id="unknownGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#94a3b8" : "#9ba8b8"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#475569" : "#627285"} stopOpacity={0.85} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
+                  <XAxis 
+                    dataKey="name" 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }} 
+                  />
+                  <YAxis 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fill: '#64748b', fontSize: 11 }} 
+                    tickFormatter={
+                      overviewMetric === 'revenue' 
+                        ? (v) => `$${(v / 1000).toFixed(0)}k` 
+                        : (v) => compact(v)
+                    }
+                  />
+                  <Tooltip
+                    cursor={{ fill: theme === 'dark' ? 'rgba(241, 245, 249, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                    contentStyle={theme === 'dark' ? { 
+                      background: '#16161a', 
+                      borderRadius: '12px', 
+                      border: 'none', 
+                      color: 'white',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                      padding: '10px 14px'
+                    } : {
+                      background: '#ffffff', 
+                      borderRadius: '12px', 
+                      border: '1px solid #e2e8f0', 
+                      color: '#0f172a',
+                      boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.05)',
+                      padding: '10px 14px'
+                    }}
+                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#64748b', marginBottom: '4px' }}
+                    formatter={(value) => [
+                      overviewMetric === 'revenue' ? money(Number(value)) : compact(Number(value)),
+                      overviewMetric === 'revenue' ? 'Won Revenue' : 'CRM Leads'
+                    ]}
+                  />
+                  <Bar 
+                    dataKey={overviewMetric} 
+                    radius={[8, 8, 0, 0]} 
+                    barSize={48}
+                  >
+                    {chartRows.map((entry, index) => {
+                      const key = entry.name.toLowerCase().replace(' ', '_');
+                      const gradName = key === 'meta_ads' || key === 'meta' 
+                        ? 'meta_adsGrad' 
+                        : key === 'google_ads' || key === 'google' 
+                          ? 'google_adsGrad' 
+                          : `${key}Grad`;
+                      return <Cell key={`cell-${index}`} fill={`url(#${gradName})`} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="pane-divider"></div>
+
+            {/* Direita: O Grid de Cards compactos */}
+            <div className="channel-overview-cards-pane">
               {chartRows.map((row) => {
+                const key = row.name.toLowerCase().replace(' ', '_');
                 const leadsPct = channelTotals.leads > 0 ? (row.leads / channelTotals.leads) * 100 : 0;
                 const revPct = channelTotals.revenue > 0 ? (row.revenue / channelTotals.revenue) * 100 : 0;
-                const key = row.name.toLowerCase().replace(' ', '_');
+                const channelRoas = row.spend > 0 ? row.revenue / row.spend : null;
+                const channelCplVal = row.leads > 0 && row.spend > 0 ? row.spend / row.leads : null;
+                
+                const isRevenueMetric = overviewMetric === 'revenue';
+                const mainPct = isRevenueMetric ? revPct : leadsPct;
+                const mainVal = isRevenueMetric ? money(row.revenue) : `${row.leads} leads`;
+
+                const isPaidChannel = key === 'meta_ads' || key === 'meta' || key === 'google_ads' || key === 'google' || key === 'glsa';
+                
+                // Channel icon mapping
+                let channelIcon = <Compass className="channel-card-icon direct" size={15} />;
+                if (key === 'meta_ads' || key === 'meta') {
+                  channelIcon = <MetaIcon className="channel-card-icon meta" />;
+                } else if (key === 'google_ads' || key === 'google') {
+                  channelIcon = <GoogleIcon className="channel-card-icon google" />;
+                } else if (key === 'glsa') {
+                  channelIcon = <ShieldCheck className="channel-card-icon glsa" size={15} />;
+                } else if (key === 'seo') {
+                  channelIcon = <Globe className="channel-card-icon seo" size={15} />;
+                } else if (key === 'email') {
+                  channelIcon = <Mail className="channel-card-icon email" size={15} />;
+                }
+
+                const spendVal = row.spend > 0 ? money(row.spend) : '$0';
+                const roasVal = channelRoas ? `${channelRoas.toFixed(2)}x` : '—';
+                const cplText = channelCplVal ? moneyWithCents(channelCplVal) : '—';
+
                 return (
-                  <div key={row.name} className="channel-share-row">
-                    <div className="channel-share-info">
-                      <span className={`channel-indicator-badge ${key}`}>{row.name}</span>
-                      <span className="channel-share-values">
-                        {row.leads} leads ({leadsPct.toFixed(0)}%) · {money(row.revenue)}
-                      </span>
-                    </div>
-                    <div className="channel-share-bar-container">
-                      <div className="channel-share-bar rev" style={{ width: `${revPct}%` }} title={`Revenue Share: ${revPct.toFixed(1)}%`}></div>
+                  <div key={row.name} className={`premium-channel-card ${key}`}>
+                    <div className="card-content-wrapper">
+                      <div className="card-channel-header">
+                        <div className="header-left">
+                          {channelIcon}
+                          <span className="card-channel-name">{row.name}</span>
+                        </div>
+                        <span className="card-channel-share">{mainPct.toFixed(0)}% share</span>
+                      </div>
+                      
+                      <div className="card-primary-value">
+                        <strong className="value-large">{mainVal}</strong>
+                      </div>
+                      
+                      {/* Mini progress bar */}
+                      <div className="mini-progress-track">
+                        <div className={`mini-progress-fill ${key}`} style={{ width: `${mainPct}%` }}></div>
+                      </div>
+
+                      <div className="card-metrics-grid">
+                        <div className="metric-grid-item">
+                          <span className="item-label">Revenue</span>
+                          <span className="item-value">{money(row.revenue)}</span>
+                        </div>
+                        <div className="metric-grid-item">
+                          <span className="item-label">Leads</span>
+                          <span className="item-value">{row.leads}</span>
+                        </div>
+                        <div className="metric-grid-item">
+                          <span className="item-label">Spend</span>
+                          <span className="item-value">{spendVal}</span>
+                        </div>
+                        <div className="metric-grid-item">
+                          <span className="item-label">ROAS</span>
+                          <span className={`item-value ${channelRoas ? 'roas-active' : ''}`}>{roasVal}</span>
+                        </div>
+                      </div>
+
+                      <div className="card-channel-footer-new">
+                        {isPaidChannel ? (
+                          row.spend > 0 ? (
+                            <div className="footer-cpl-info">
+                              <span className="cpl-label">CPL:</span>
+                              <span className="cpl-value">{cplText}</span>
+                            </div>
+                          ) : (
+                            <span className="inactive-tag">Paid (No Spend)</span>
+                          )
+                        ) : (
+                          <span className="organic-pill-tag">Organic</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </aside>
+          </div>
         </section>
 
-        {/* Dynamic Executive Insights (in place of duplicated tiles) */}
+        {/* Executive Insights */}
         <section className="insight-section">
           <div className="section-heading">
-            <p className="eyebrow">Executive Insights</p>
+            <p className="eyebrow-small">Executive Insights</p>
             <h2>Performance Readout</h2>
           </div>
-          <div className="executive-insights-box">
-            <ul>
+          <div className="insights-container">
+            <ul className="insights-list">
               {executiveInsights.map((insight, idx) => {
                 const parts = insight.split('**');
                 return (
-                  <li key={idx} className="insight-bullet">
-                    <span className="bullet-dot"></span>
+                  <li key={idx} className="insight-item">
+                    <span className="insight-bullet">•</span>
                     <p className="insight-text">
                       {parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
                     </p>
@@ -727,10 +884,10 @@ export default function DashboardApp() {
           <section className="client-comparison">
             <div className="section-heading">
               <p className="eyebrow">Agency Overview</p>
-              <h2>Client Comparison (Meta Ads Only)</h2>
+              <h2>Top Clients by Revenue (Meta Ads Only)</h2>
             </div>
             <div className="client-grid">
-              {channelClientSummaries.map((client) => {
+              {channelClientSummaries.slice(0, 4).map((client) => {
                 const clientRoas = client.spend > 0 ? client.revenue / client.spend : null;
                 return (
                   <button
@@ -748,6 +905,9 @@ export default function DashboardApp() {
                 );
               })}
             </div>
+            <p className="client-comparison-note">
+              Showing top 4 performing clients. See the performance table below for all accounts.
+            </p>
           </section>
         )}
 
@@ -763,20 +923,21 @@ export default function DashboardApp() {
                 <BarChart data={chartRows} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
                   <defs>
                     <linearGradient id="crmLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0866ff" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#044bbd" stopOpacity={0.85} />
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#0866ff" : "#4f7db3"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#044bbd" : "#2c507a"} stopOpacity={0.85} />
                     </linearGradient>
                     <linearGradient id="metaLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fbb217" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#d9930c" stopOpacity={0.85} />
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#e5b858"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#b58928"} stopOpacity={0.85} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <Tooltip
-                    contentStyle={{ background: '#0f172a', borderRadius: '8px', border: 'none', color: 'white' }}
-                    labelStyle={{ fontWeight: 'bold', color: '#0866ff' }}
+                    cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                    contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
+                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#0866ff' : '#5c7fa8' }}
                     formatter={(value, name) => [compact(Number(value)), name]}
                   />
                   <Legend iconType="circle" />
@@ -869,9 +1030,9 @@ export default function DashboardApp() {
 
         {/* KPI Cards */}
         <section className="kpi-grid-three">
-          <Metric label="CRM Tracked Leads" value={compact(channelTotals.leads)} icon={<Users size={18} />} />
-          <Metric label="Won Revenue" value={money(channelTotals.revenue)} icon={<DollarSign size={18} />} />
-          <Metric label="Revenue / Lead" value={channelRevenuePerLead ? money(channelRevenuePerLead) : 'N/A'} icon={<Target size={18} />} />
+          <Metric label="CRM Tracked Leads" value={compact(channelTotals.leads)} icon={<Users size={16} />} className="metric-leads" />
+          <Metric label="Won Revenue" value={money(channelTotals.revenue)} icon={<DollarSign size={16} />} className="metric-revenue" />
+          <Metric label="Revenue / Lead" value={channelRevenuePerLead ? money(channelRevenuePerLead) : 'N/A'} icon={<Target size={16} />} className="metric-rev-lead" />
         </section>
 
         {/* Client Comparison for Agency */}
@@ -879,10 +1040,10 @@ export default function DashboardApp() {
           <section className="client-comparison">
             <div className="section-heading">
               <p className="eyebrow">Agency Overview</p>
-              <h2>Client Performance Comparison</h2>
+              <h2>Top Clients by Revenue</h2>
             </div>
             <div className="client-grid">
-              {channelClientSummaries.map((client) => {
+              {channelClientSummaries.slice(0, 4).map((client) => {
                 const revPerLead = client.leads > 0 ? client.revenue / client.leads : 0;
                 return (
                   <button
@@ -898,6 +1059,9 @@ export default function DashboardApp() {
                 );
               })}
             </div>
+            <p className="client-comparison-note">
+              Showing top 4 performing clients. See the performance table below for all accounts.
+            </p>
           </section>
         )}
 
@@ -913,21 +1077,22 @@ export default function DashboardApp() {
                 <BarChart data={chartRows} margin={{ top: 10, right: 5, left: -10, bottom: 5 }}>
                   <defs>
                     <linearGradient id="generalLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#1e293b" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#0f172a" stopOpacity={0.85} />
+                      <stop offset="0%" stopColor="#64748b" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#334155" stopOpacity={0.85} />
                     </linearGradient>
                     <linearGradient id="generalRevGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fbb217" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#d9930c" stopOpacity={0.85} />
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#e5b858"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#b58928"} stopOpacity={0.85} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <Tooltip
-                    contentStyle={{ background: '#0f172a', borderRadius: '8px', border: 'none', color: 'white' }}
-                    labelStyle={{ fontWeight: 'bold', color: '#fbb217' }}
+                    cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                    contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
+                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#fbb217' : '#cfad63' }}
                     formatter={(value, name) => 
                       name === 'Revenue' ? [money(Number(value)), 'Won Revenue'] : [compact(Number(value)), 'CRM Leads']
                     }
@@ -1083,7 +1248,7 @@ export default function DashboardApp() {
             style={{ cursor: 'pointer' }}
             title="Click to view scoped client dashboard"
           >
-            <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold-dark)' }}>
+            <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold)' }}>
               {row.client_name}
             </td>
             <td>{compact(row.leads)}</td>
@@ -1128,7 +1293,7 @@ export default function DashboardApp() {
       
       return (
         <tr key={row.client_id}>
-          <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold-dark)' }}>{row.client_name}</td>
+          <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold)' }}>{row.client_name}</td>
           <td>{compact(row.leads)}</td>
           <td>{money(row.won_revenue)}</td>
           <td>{money(row.spend)}</td>
@@ -1146,7 +1311,7 @@ export default function DashboardApp() {
       const revPerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
       return (
         <tr key={row.client_id}>
-          <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold-dark)' }}>{row.client_name}</td>
+          <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold)' }}>{row.client_name}</td>
           <td>{compact(row.leads)}</td>
           <td>{money(row.won_revenue)}</td>
           <td>{revPerLead ? money(revPerLead) : 'N/A'}</td>
@@ -1287,7 +1452,7 @@ export default function DashboardApp() {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className={`main-content ${theme}-theme`}>
         <header className="content-header">
           <div className="header-info">
             <p className="eyebrow-small">Attribution Suite</p>
@@ -1324,9 +1489,19 @@ export default function DashboardApp() {
               <input type="date" value={end} onChange={(event) => setEnd(event.target.value)} />
             </div>
             
+            <button 
+              type="button" 
+              className="theme-toggle-switch"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            </button>
+
             <div className="status-indicator-badge">
               <ShieldCheck size={14} />
-              <span>Secure Connection</span>
+              <span>Secure</span>
             </div>
           </div>
         </header>
@@ -1345,13 +1520,25 @@ export default function DashboardApp() {
   );
 }
 
-function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
+function Metric({
+  label,
+  value,
+  icon,
+  className
+}: {
+  label: string;
+  value: string;
+  icon: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="metric-card">
+    <div className={`metric-card ${className || ''}`}>
       <div className="metric-sweep"></div>
-      <div className="metric-icon-wrap">{icon}</div>
-      <div className="metric-info">
-        <p className="metric-label">{label}</p>
+      <div className="metric-card-header">
+        <span className="metric-label">{label}</span>
+        <div className="metric-icon-wrap">{icon}</div>
+      </div>
+      <div className="metric-card-body">
         <strong className="metric-value">{value}</strong>
       </div>
     </div>
