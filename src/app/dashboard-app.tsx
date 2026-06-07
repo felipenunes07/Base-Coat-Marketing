@@ -109,7 +109,7 @@ export default function DashboardApp() {
   // Custom navigation tab state
   const [activeTab, setActiveTab] = useState<string>('blended');
   const [overviewMetric, setOverviewMetric] = useState<'revenue' | 'leads'>('revenue');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
