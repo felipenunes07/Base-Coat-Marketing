@@ -118,6 +118,12 @@ export default function DashboardApp() {
   const [timeSeriesLoading, setTimeSeriesLoading] = useState(false);
   const [activeMonthPoint, setActiveMonthPoint] = useState<any | null>(null);
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     setActiveMonthPoint(null);
   }, [activeTab, selectedClient, start, end]);
@@ -769,81 +775,85 @@ export default function DashboardApp() {
           <div className="channel-overview-layout">
             {/* Esquerda: O Gráfico */}
             <div className="chart-frame">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartRows} barGap={4} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="leadsBarGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fbb217" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#d9930c" stopOpacity={1} />
-                    </linearGradient>
-                    <linearGradient id="revenueBarGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={theme === 'dark' ? "#334155" : "#1e293b"} stopOpacity={1} />
-                      <stop offset="100%" stopColor={theme === 'dark' ? "#0f172a" : "#0f172a"} stopOpacity={0.95} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
-                  <XAxis 
-                    dataKey="name" 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }} 
-                  />
-                  <YAxis 
-                    yAxisId="left"
-                    tickLine={false} 
-                    axisLine={false} 
-                    tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }} 
-                    tickFormatter={(v) => compact(v)}
-                  />
-                  <YAxis 
-                    yAxisId="right"
-                    orientation="right"
-                    tickLine={false} 
-                    axisLine={false} 
-                    tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }} 
-                    tickFormatter={(v) => v}
-                  />
-                  <Tooltip
-                    cursor={{ fill: theme === 'dark' ? 'rgba(241, 245, 249, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
-                    contentStyle={theme === 'dark' ? { 
-                      background: '#16161a', 
-                      borderRadius: '12px', 
-                      border: 'none', 
-                      color: 'white',
-                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
-                      padding: '10px 14px'
-                    } : {
-                      background: '#ffffff', 
-                      borderRadius: '12px', 
-                      border: '1px solid #e2e8f0', 
-                      color: '#0f172a',
-                      boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.05)',
-                      padding: '10px 14px'
-                    }}
-                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#64748b', marginBottom: '4px' }}
-                    formatter={(value, name) => {
-                      if (name === 'Revenue') return [money(Number(value)), 'Won Revenue'];
-                      return [compact(Number(value)), 'CRM Leads'];
-                    }}
-                  />
-                  <Bar 
-                    yAxisId="left"
-                    dataKey="leads" 
-                    name="Leads"
-                    fill="url(#leadsBarGrad)"
-                    radius={[4, 4, 0, 0]} 
-                    barSize={18}
-                  />
-                  <Bar 
-                    yAxisId="right"
-                    dataKey="revenue" 
-                    name="Revenue"
-                    fill="url(#revenueBarGrad)"
-                    radius={[4, 4, 0, 0]} 
-                    barSize={18}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              {mounted ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartRows} barGap={4} margin={{ top: 10, right: 40, left: -5, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="leadsBarGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fbb217" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#d9930c" stopOpacity={1} />
+                      </linearGradient>
+                      <linearGradient id="revenueBarGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={theme === 'dark' ? "#334155" : "#1e293b"} stopOpacity={1} />
+                        <stop offset="100%" stopColor={theme === 'dark' ? "#0f172a" : "#0f172a"} stopOpacity={0.95} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
+                    <XAxis 
+                      dataKey="name" 
+                      tickLine={false} 
+                      axisLine={false} 
+                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }} 
+                    />
+                    <YAxis 
+                      yAxisId="left"
+                      tickLine={false} 
+                      axisLine={false} 
+                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }} 
+                      tickFormatter={(v) => compact(v)}
+                    />
+                    <YAxis 
+                      yAxisId="right"
+                      orientation="right"
+                      tickLine={false} 
+                      axisLine={false} 
+                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }} 
+                      tickFormatter={(v) => `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}
+                    />
+                    <Tooltip
+                      cursor={{ fill: theme === 'dark' ? 'rgba(241, 245, 249, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                      contentStyle={theme === 'dark' ? { 
+                        background: '#16161a', 
+                        borderRadius: '12px', 
+                        border: 'none', 
+                        color: 'white',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                        padding: '10px 14px'
+                      } : {
+                        background: '#ffffff', 
+                        borderRadius: '12px', 
+                        border: '1px solid #e2e8f0', 
+                        color: '#0f172a',
+                        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.05)',
+                        padding: '10px 14px'
+                      }}
+                      labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#64748b', marginBottom: '4px' }}
+                      formatter={(value, name) => {
+                        if (name === 'Revenue') return [money(Number(value)), 'Won Revenue'];
+                        return [compact(Number(value)), 'CRM Leads'];
+                      }}
+                    />
+                    <Bar 
+                      yAxisId="left"
+                      dataKey="leads" 
+                      name="Leads"
+                      fill="url(#leadsBarGrad)"
+                      radius={[4, 4, 0, 0]} 
+                      barSize={18}
+                    />
+                    <Bar 
+                      yAxisId="right"
+                      dataKey="revenue" 
+                      name="Revenue"
+                      fill="url(#revenueBarGrad)"
+                      radius={[4, 4, 0, 0]} 
+                      barSize={18}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: 300 }} />
+              )}
             </div>
 
             <div className="pane-divider"></div>
@@ -1123,9 +1133,10 @@ export default function DashboardApp() {
               </h2>
             </div>
             <div className="chart-frame">
-              <ResponsiveContainer width="100%" height={320}>
-                {(selectedClient === 'all' && isAgency) ? (
-                  <BarChart data={chartRows} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+              {mounted ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  {(selectedClient === 'all' && isAgency) ? (
+                    <BarChart data={chartRows} margin={{ top: 10, right: 40, left: -5, bottom: 5 }}>
                     <defs>
                       <linearGradient id="crmLeadsGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
@@ -1152,7 +1163,7 @@ export default function DashboardApp() {
                 ) : (
                   <ComposedChart 
                     data={timeSeriesData} 
-                    margin={{ top: 10, right: 5, left: -10, bottom: 5 }}
+                    margin={{ top: 10, right: 40, left: -5, bottom: 5 }}
                     style={{ cursor: 'pointer' }}
                     onClick={(state: any) => {
                       if (state && state.activeLabel) {
@@ -1242,6 +1253,9 @@ export default function DashboardApp() {
                   </ComposedChart>
                 )}
               </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 320 }} />
+            )}
             </div>
           </div>
 
@@ -1375,9 +1389,10 @@ export default function DashboardApp() {
               <h2>Leads & Revenue Distribution</h2>
             </div>
             <div className="chart-frame">
-              <ResponsiveContainer width="100%" height={320}>
-                {(selectedClient === 'all' && isAgency) ? (
-                  <BarChart data={chartRows} margin={{ top: 10, right: 5, left: -10, bottom: 5 }}>
+              {mounted ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  {(selectedClient === 'all' && isAgency) ? (
+                    <BarChart data={chartRows} margin={{ top: 10, right: 40, left: -5, bottom: 5 }}>
                     <defs>
                       <linearGradient id="generalLeadsGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
@@ -1391,7 +1406,7 @@ export default function DashboardApp() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
                     <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                     <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
                     <Tooltip
                       cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
                       contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
@@ -1407,7 +1422,7 @@ export default function DashboardApp() {
                 ) : (
                   <ComposedChart 
                     data={timeSeriesData} 
-                    margin={{ top: 10, right: 5, left: -10, bottom: 5 }}
+                    margin={{ top: 10, right: 40, left: -5, bottom: 5 }}
                     style={{ cursor: 'pointer' }}
                     onClick={(state: any) => {
                       if (state && state.activePayload && state.activePayload.length > 0) {
@@ -1487,6 +1502,9 @@ export default function DashboardApp() {
                   </ComposedChart>
                 )}
               </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 320 }} />
+            )}
             </div>
           </div>
         </section>
