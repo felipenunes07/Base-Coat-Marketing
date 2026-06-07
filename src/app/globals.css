@@ -653,103 +653,107 @@ select:focus {
 .metric-card {
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(16px);
-  border-radius: 12px;
-  padding: 12px 16px;
+  background: rgba(22, 28, 45, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 20px;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 6px;
-  min-height: 72px;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  align-items: center;
+  gap: 14px;
+  min-height: 100px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1;
 }
 
-/* Background radial glow definitions per variant (always slightly visible) */
-.metric-card.metric-leads,
-.metric-card.metric-spend,
-.metric-card.metric-rev-lead,
-.metric-card.metric-cpl {
-  background: rgba(22, 28, 45, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-.metric-card.metric-revenue,
-.metric-card.metric-roas {
-  background: rgba(22, 28, 45, 0.45);
-  border: 1px solid rgba(251, 178, 23, 0.05);
+.metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(251, 178, 23, 0) 0%, rgba(251, 178, 23, 0.03) 50%, rgba(251, 178, 23, 0.08) 100%);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: -1;
+  pointer-events: none;
 }
 
-/* Variant Specific Metric Card Hover States */
+.metric-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: var(--brand-gold-gradient);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .metric-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
+  border-color: rgba(251, 178, 23, 0.25);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
 }
 
-.metric-card.metric-leads:hover,
-.metric-card.metric-spend:hover,
-.metric-card.metric-rev-lead:hover,
-.metric-card.metric-cpl:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-}
-.metric-card.metric-revenue:hover,
-.metric-card.metric-roas:hover {
-  border-color: rgba(251, 178, 23, 0.15);
-  box-shadow: 0 6px 16px rgba(251, 178, 23, 0.04);
+.metric-card:hover::before {
+  transform: scaleX(1);
 }
 
-/* Metric Icon Wrappers - Extremely minimal desaturated */
+.metric-card:hover::after {
+  width: 100%;
+}
+
+.metric-sweep {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.metric-card:hover .metric-sweep {
+  animation: paintSweep 1s forwards;
+}
+
 .metric-icon-wrap {
-  width: auto;
-  height: auto;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s ease;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-/* Icon Wrap Hover Overrides */
-.metric-card.metric-leads:hover .metric-icon-wrap,
-.metric-card.metric-spend:hover .metric-icon-wrap,
-.metric-card.metric-rev-lead:hover .metric-icon-wrap,
-.metric-card.metric-cpl:hover .metric-icon-wrap { 
-  color: #ffffff; 
-}
-.metric-card.metric-revenue:hover .metric-icon-wrap,
-.metric-card.metric-roas:hover .metric-icon-wrap { 
-  color: var(--brand-gold); 
+.metric-card:hover .metric-icon-wrap {
+  background: rgba(251, 178, 23, 0.12);
+  color: var(--brand-gold);
+  transform: scale(1.05);
 }
 
-.metric-card-header {
+.metric-info {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.metric-card-body {
-  display: flex;
-  align-items: baseline;
-  width: 100%;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .metric-label {
   margin: 0;
   color: var(--muted);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }
 
 .metric-value {
   font-family: 'Outfit', sans-serif;
-  font-size: clamp(18px, 1.8vw, 24px);
+  font-size: clamp(18px, 1.8vw, 26px);
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.5px;
@@ -2243,68 +2247,31 @@ body {
 .light-theme .metric-card {
   background: #ffffff !important;
   border-color: #cbd5e1 !important;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02) !important;
+  box-shadow: 0 4px 6px rgba(17, 22, 37, 0.015) !important;
 }
 .light-theme .metric-card .metric-value {
-  color: #0f172a;
+  color: var(--navy) !important;
 }
 .light-theme .metric-card .metric-label {
-  color: #64748b;
+  color: #64748b !important;
 }
-
-.light-theme .metric-card.metric-leads,
-.light-theme .metric-card.metric-spend,
-.light-theme .metric-card.metric-rev-lead,
-.light-theme .metric-card.metric-cpl,
-.light-theme .metric-card.metric-revenue,
-.light-theme .metric-card.metric-roas {
-  background: #ffffff !important;
-  border-color: #e2e8f0 !important;
-}
-
 .light-theme .metric-card .metric-icon-wrap {
-  background: transparent !important;
+  background: #f1f5f9 !important;
+  color: var(--navy) !important;
   border: none !important;
   box-shadow: none !important;
-  color: #64748b !important;
 }
 
 /* Hover States Metric Cards in Light theme */
-.light-theme .metric-card.metric-leads:hover,
-.light-theme .metric-card.metric-spend:hover,
-.light-theme .metric-card.metric-rev-lead:hover,
-.light-theme .metric-card.metric-cpl:hover {
-  border-color: #94a3b8 !important;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04) !important;
+.light-theme .metric-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: rgba(251, 178, 23, 0.3) !important;
+  box-shadow: 0 12px 24px rgba(17, 22, 37, 0.05) !important;
   background: #ffffff !important;
 }
-.light-theme .metric-card.metric-revenue:hover,
-.light-theme .metric-card.metric-roas:hover {
-  border-color: rgba(251, 178, 23, 0.25) !important;
-  box-shadow: 0 4px 12px rgba(251, 178, 23, 0.03), 0 2px 6px rgba(15, 23, 42, 0.02) !important;
-  background: #ffffff !important;
-}
-
-.light-theme .metric-card.metric-leads:hover .metric-icon-wrap,
-.light-theme .metric-card.metric-spend:hover .metric-icon-wrap,
-.light-theme .metric-card.metric-rev-lead:hover .metric-icon-wrap,
-.light-theme .metric-card.metric-cpl:hover .metric-icon-wrap {
-  background: transparent !important;
-  color: #0f172a !important;
-}
-.light-theme .metric-card.metric-revenue:hover .metric-icon-wrap,
-.light-theme .metric-card.metric-roas:hover .metric-icon-wrap {
-  background: transparent !important;
-  color: var(--brand-gold-dark) !important;
-}
-
-.light-theme .metric-card-footer {
-  border-top-color: #f1f5f9;
-  color: #64748b;
-}
-
-.light-theme .metric-card-footer strong {
-  color: #0f172a;
+.light-theme .metric-card:hover .metric-icon-wrap {
+  background: var(--navy) !important;
+  color: var(--brand-gold) !important;
 }
 
 /* Sections and Banners */

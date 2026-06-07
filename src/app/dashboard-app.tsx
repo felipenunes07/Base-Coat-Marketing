@@ -1913,11 +1913,9 @@ function Metric({
   return (
     <div className={`metric-card ${className || ''}`}>
       <div className="metric-sweep"></div>
-      <div className="metric-card-header">
-        <span className="metric-label">{label}</span>
-        <div className="metric-icon-wrap">{icon}</div>
-      </div>
-      <div className="metric-card-body">
+      <div className="metric-icon-wrap">{icon}</div>
+      <div className="metric-info">
+        <p className="metric-label">{label}</p>
         <strong className="metric-value">{value}</strong>
       </div>
     </div>
