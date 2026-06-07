@@ -1003,10 +1003,10 @@ export default function DashboardApp() {
                       <div className="card-channel-footer-new">
                         {isPaidChannel ? (
                           row.spend > 0 ? (
-                            <div className="footer-cpl-info">
-                              <span className="cpl-label">CPL:</span>
-                              <span className="cpl-value">{cplText}</span>
-                            </div>
+                            <span className={`cpl-pill-tag ${key}`}>
+                              <span className="cpl-pill-label">CPL: </span>
+                              <span className="cpl-pill-val">{cplText}</span>
+                            </span>
                           ) : (
                             <span className="inactive-tag">Paid (No Spend)</span>
                           )
