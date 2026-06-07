@@ -17,8 +17,8 @@
   --brand-gold-gradient: linear-gradient(135deg, #fbb217 0%, #d9930c 100%);
   --brand-navy-gradient: linear-gradient(135deg, #111625 0%, #1e293b 100%);
   
-  --meta-blue: #0866ff;
-  --meta-soft: rgba(8, 102, 255, 0.1);
+  --meta-blue: #3b82f6;
+  --meta-soft: rgba(59, 130, 246, 0.1);
   --danger: #ef4444;
 
   /* Premium Design Tokens */
@@ -460,7 +460,7 @@ select:focus {
   transition: all 0.2s ease;
 }
 
-.channel-icon.meta { color: #0866ff; }
+.channel-icon.meta { color: var(--meta-blue); }
 .channel-icon.google { color: #fbb217; }
 .channel-icon.glsa { color: #84cc16; }
 .channel-icon.seo { color: #a855f7; }
@@ -769,8 +769,8 @@ select:focus {
 }
 
 .channel-intro-banner.meta {
-  border-left: 4px solid #0866ff;
-  background: linear-gradient(90deg, rgba(8, 102, 255, 0.08) 0%, var(--surface) 100%);
+  border-left: 4px solid var(--meta-blue);
+  background: linear-gradient(90deg, var(--meta-soft) 0%, var(--surface) 100%);
 }
 .channel-intro-banner.google {
   border-left: 4px solid #fbb217;
@@ -949,14 +949,14 @@ select:focus {
 .channel-overview-layout {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 8px;
 }
 
 .pane-divider {
   border-top: 1px solid var(--line);
-  margin: 16px 0 24px;
+  margin: 6px 0 10px;
   width: 100%;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .chart-frame {
@@ -1035,7 +1035,7 @@ select:focus {
   transition: transform 0.25s ease;
 }
 
-.channel-card-icon.meta { color: #5c7fa8; }
+.channel-card-icon.meta { color: #60a5fa; }
 .channel-card-icon.google { color: #cfad63; }
 .channel-card-icon.glsa { color: #7da35d; }
 .channel-card-icon.seo { color: #a08ebd; }
@@ -1067,7 +1067,7 @@ select:focus {
 }
 
 .premium-channel-card.meta_ads:hover .card-channel-share,
-.premium-channel-card.meta:hover .card-channel-share { background: rgba(92, 127, 168, 0.1); color: #5c7fa8; }
+.premium-channel-card.meta:hover .card-channel-share { background: rgba(96, 165, 250, 0.1); color: #60a5fa; }
 .premium-channel-card.google_ads:hover .card-channel-share,
 .premium-channel-card.google:hover .card-channel-share { background: rgba(207, 173, 99, 0.1); color: #cfad63; }
 .premium-channel-card.glsa:hover .card-channel-share { background: rgba(125, 163, 93, 0.1); color: #7da35d; }
@@ -1105,7 +1105,7 @@ select:focus {
 }
 
 .mini-progress-fill.meta_ads,
-.mini-progress-fill.meta { background: linear-gradient(90deg, #5c7fa8, #40628a); }
+.mini-progress-fill.meta { background: linear-gradient(90deg, #60a5fa, #2563eb); }
 .mini-progress-fill.google_ads,
 .mini-progress-fill.google { background: linear-gradient(90deg, #cfad63, #a18343); }
 .mini-progress-fill.glsa { background: linear-gradient(90deg, #7da35d, #527038); }
@@ -1802,7 +1802,7 @@ td:nth-child(2) {
 }
 
 .source-pill.meta_ads,
-.source-pill.meta { background: rgba(8, 102, 255, 0.08) !important; color: #0866ff !important; }
+.source-pill.meta { background: var(--meta-soft) !important; color: var(--meta-blue) !important; }
 .source-pill.google_ads,
 .source-pill.google { background: rgba(251, 178, 23, 0.08) !important; color: #d9930c !important; }
 .source-pill.glsa { background: rgba(101, 163, 13, 0.08) !important; color: #65a30d !important; }
@@ -2321,6 +2321,10 @@ body {
   background: #ffffff;
   border-color: #cbd5e1;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.01);
+}
+.light-theme .pane-divider {
+  border-top-color: #cbd5e1;
+  opacity: 0.6;
 }
 .light-theme .channel-intro-banner.meta { background: linear-gradient(90deg, rgba(8, 102, 255, 0.03) 0%, #ffffff 100%); }
 .light-theme .channel-intro-banner.google { background: linear-gradient(90deg, rgba(251, 178, 23, 0.03) 0%, #ffffff 100%); }

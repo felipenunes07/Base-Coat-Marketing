@@ -569,8 +569,8 @@ export default function DashboardApp() {
                 <BarChart data={chartRows} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
                   <defs>
                     <linearGradient id="meta_adsGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={theme === 'dark' ? "#3b82f6" : "#4f7db3"} stopOpacity={1} />
-                      <stop offset="100%" stopColor={theme === 'dark' ? "#0866ff" : "#2c507a"} stopOpacity={0.85} />
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#60a5fa" : "#4f7db3"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#2563eb" : "#2c507a"} stopOpacity={0.85} />
                     </linearGradient>
                     <linearGradient id="google_adsGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#e5b858"} stopOpacity={1} />
@@ -923,8 +923,8 @@ export default function DashboardApp() {
                 <BarChart data={chartRows} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
                   <defs>
                     <linearGradient id="crmLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={theme === 'dark' ? "#0866ff" : "#4f7db3"} stopOpacity={1} />
-                      <stop offset="100%" stopColor={theme === 'dark' ? "#044bbd" : "#2c507a"} stopOpacity={0.85} />
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#60a5fa" : "#4f7db3"} stopOpacity={1} />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#2563eb" : "#2c507a"} stopOpacity={0.85} />
                     </linearGradient>
                     <linearGradient id="metaLeadsGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#e5b858"} stopOpacity={1} />
@@ -937,7 +937,7 @@ export default function DashboardApp() {
                   <Tooltip
                     cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
                     contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
-                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#0866ff' : '#5c7fa8' }}
+                    labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#60a5fa' : '#5c7fa8' }}
                     formatter={(value, name) => [compact(Number(value)), name]}
                   />
                   <Legend iconType="circle" />
