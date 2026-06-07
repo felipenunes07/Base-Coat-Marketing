@@ -879,37 +879,7 @@ export default function DashboardApp() {
           </div>
         </div>
 
-        {/* Client comparison for Meta Ads (only if agency & selectedClient === 'all') */}
-        {isAgency && selectedClient === 'all' && (
-          <section className="client-comparison">
-            <div className="section-heading">
-              <p className="eyebrow">Agency Overview</p>
-              <h2>Top Clients by Revenue (Meta Ads Only)</h2>
-            </div>
-            <div className="client-grid">
-              {channelClientSummaries.slice(0, 4).map((client) => {
-                const clientRoas = client.spend > 0 ? client.revenue / client.spend : null;
-                return (
-                  <button
-                    className="client-tile"
-                    key={client.id}
-                    onClick={() => setSelectedClient(client.id)}
-                    type="button"
-                  >
-                    <span>{client.name}</span>
-                    <strong>{money(client.revenue)}</strong>
-                    <small>
-                      {compact(client.leads)} CRM leads · {compact(client.metaLeads)} Meta leads · {money(client.spend)} spend · {roas(clientRoas)} ROAS
-                    </small>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="client-comparison-note">
-              Showing top 4 performing clients. See the performance table below for all accounts.
-            </p>
-          </section>
-        )}
+
 
         {/* Visual Attribution Split (CRM vs Meta reported) */}
         <section className="workspace">
@@ -1035,35 +1005,7 @@ export default function DashboardApp() {
           <Metric label="Revenue / Lead" value={channelRevenuePerLead ? money(channelRevenuePerLead) : 'N/A'} icon={<Target size={16} />} className="metric-rev-lead" />
         </section>
 
-        {/* Client Comparison for Agency */}
-        {isAgency && selectedClient === 'all' && (
-          <section className="client-comparison">
-            <div className="section-heading">
-              <p className="eyebrow">Agency Overview</p>
-              <h2>Top Clients by Revenue</h2>
-            </div>
-            <div className="client-grid">
-              {channelClientSummaries.slice(0, 4).map((client) => {
-                const revPerLead = client.leads > 0 ? client.revenue / client.leads : 0;
-                return (
-                  <button
-                    className="client-tile"
-                    key={client.id}
-                    onClick={() => setSelectedClient(client.id)}
-                    type="button"
-                  >
-                    <span>{client.name}</span>
-                    <strong>{money(client.revenue)}</strong>
-                    <small>{compact(client.leads)} leads · {money(revPerLead)} / lead</small>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="client-comparison-note">
-              Showing top 4 performing clients. See the performance table below for all accounts.
-            </p>
-          </section>
-        )}
+
 
         {/* Chart */}
         <section className="workspace-single">
