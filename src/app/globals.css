@@ -2402,11 +2402,6 @@ body {
   transform: translateY(-6px);
 }
 
-/* Light Theme Card Top Accents (Slightly softer/brighter gradients) */
-.light-theme .premium-channel-card .card-top-accent {
-  opacity: 0.95;
-}
-
 .light-theme .premium-channel-card.meta_ads:hover,
 .light-theme .premium-channel-card.meta:hover {
   border-color: rgba(99, 102, 241, 0.45);
