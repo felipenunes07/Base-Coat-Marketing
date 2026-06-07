@@ -2535,6 +2535,12 @@ body {
   box-shadow: 0 0 14px rgba(33, 44, 61, 0.25);
 }
 
+.dense-kpi.clickable.active-metric-tertiary {
+  background: rgba(100, 116, 139, 0.12);
+  border-color: #64748b;
+  box-shadow: 0 0 14px rgba(100, 116, 139, 0.15);
+}
+
 .light-theme .dense-kpi.clickable:hover {
   background: rgba(15, 23, 42, 0.03);
   border-color: rgba(217, 147, 12, 0.35);
@@ -2550,6 +2556,12 @@ body {
   background: rgba(33, 44, 61, 0.08);
   border-color: #212c3d;
   box-shadow: 0 0 12px rgba(33, 44, 61, 0.15);
+}
+
+.light-theme .dense-kpi.clickable.active-metric-tertiary {
+  background: rgba(100, 116, 139, 0.06);
+  border-color: #64748b;
+  box-shadow: 0 0 12px rgba(100, 116, 139, 0.12);
 }
 
 

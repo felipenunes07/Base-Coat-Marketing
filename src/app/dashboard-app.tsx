@@ -1325,7 +1325,7 @@ export default function DashboardApp() {
                 <div style={{ display: 'flex', gap: '16px', marginTop: '6px', flexWrap: 'wrap' }}>
                   {selectedMetaMetrics.map((m, idx) => {
                     const conf = getMetaMetricConfig(m);
-                    const color = idx === 0 ? '#fbb217' : '#212c3d';
+                    const color = getMetricColor(idx);
                     return (
                       <div key={m} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{
@@ -1395,7 +1395,7 @@ export default function DashboardApp() {
                       />
                       {selectedMetaMetrics.map((m, idx) => {
                         const mConfig = getMetaMetricConfig(m);
-                        const color = idx === 0 ? '#fbb217' : '#212c3d';
+                        const color = getMetricColor(idx);
                         return (
                           <Bar
                             key={m}
@@ -1465,7 +1465,7 @@ export default function DashboardApp() {
                         const mConfig = getMetaMetricConfig(m);
                         const isAreaOrLine = mConfig.type === 'ratio' || mConfig.type === 'percentage';
                         const axisId = idx === 0 ? "left" : "right";
-                        const color = idx === 0 ? '#fbb217' : '#212c3d';
+                        const color = getMetricColor(idx);
                         if (isAreaOrLine) {
                           return (
                             <Area
