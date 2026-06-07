@@ -17,8 +17,8 @@
   --brand-gold-gradient: linear-gradient(135deg, #fbb217 0%, #d9930c 100%);
   --brand-navy-gradient: linear-gradient(135deg, #111625 0%, #1e293b 100%);
   
-  --meta-blue: #3b82f6;
-  --meta-soft: rgba(59, 130, 246, 0.1);
+  --meta-blue: #6366f1;
+  --meta-soft: rgba(99, 102, 241, 0.1);
   --danger: #ef4444;
 
   /* Premium Design Tokens */
@@ -1035,7 +1035,7 @@ select:focus {
   transition: transform 0.25s ease;
 }
 
-.channel-card-icon.meta { color: #60a5fa; }
+.channel-card-icon.meta { color: #818cf8; }
 .channel-card-icon.google { color: #cfad63; }
 .channel-card-icon.glsa { color: #7da35d; }
 .channel-card-icon.seo { color: #a08ebd; }
@@ -1067,7 +1067,7 @@ select:focus {
 }
 
 .premium-channel-card.meta_ads:hover .card-channel-share,
-.premium-channel-card.meta:hover .card-channel-share { background: rgba(96, 165, 250, 0.1); color: #60a5fa; }
+.premium-channel-card.meta:hover .card-channel-share { background: rgba(99, 102, 241, 0.1); color: #818cf8; }
 .premium-channel-card.google_ads:hover .card-channel-share,
 .premium-channel-card.google:hover .card-channel-share { background: rgba(207, 173, 99, 0.1); color: #cfad63; }
 .premium-channel-card.glsa:hover .card-channel-share { background: rgba(125, 163, 93, 0.1); color: #7da35d; }
@@ -1105,7 +1105,7 @@ select:focus {
 }
 
 .mini-progress-fill.meta_ads,
-.mini-progress-fill.meta { background: linear-gradient(90deg, #60a5fa, #2563eb); }
+.mini-progress-fill.meta { background: linear-gradient(90deg, #818cf8, #4f46e5); }
 .mini-progress-fill.google_ads,
 .mini-progress-fill.google { background: linear-gradient(90deg, #cfad63, #a18343); }
 .mini-progress-fill.glsa { background: linear-gradient(90deg, #7da35d, #527038); }
@@ -1116,8 +1116,8 @@ select:focus {
 /* Metrics Grid inside Card */
 .card-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 8px;
   margin-top: 8px;
 }
 
@@ -1313,7 +1313,7 @@ select:focus {
 
 .channel-indicator-badge.meta::before, 
 .channel-indicator-badge.meta_ads::before {
-  background: #0866ff;
+  background: var(--meta-blue);
 }
 
 .channel-indicator-badge.google::before, 
@@ -1361,7 +1361,7 @@ select:focus {
 
 .channel-share-bar.meta,
 .channel-share-bar.meta_ads {
-  background: linear-gradient(90deg, #3b82f6, #0866ff);
+  background: linear-gradient(90deg, #6366f1, #4f46e5);
 }
 
 .channel-share-bar.google,
@@ -1636,11 +1636,16 @@ select:focus {
   gap: 12px;
 }
 
-.insight-bullet {
-  color: var(--brand-gold);
-  font-size: 18px;
-  line-height: 1.2;
-  user-select: none;
+.insight-bullet-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-gold);
+  box-shadow: 0 0 8px rgba(251, 178, 23, 0.8), 0 0 4px rgba(251, 178, 23, 0.5);
+  flex-shrink: 0;
+  margin-top: 8px;
+  align-self: flex-start;
 }
 
 .insight-text {
@@ -2326,7 +2331,7 @@ body {
   border-top-color: #cbd5e1;
   opacity: 0.6;
 }
-.light-theme .channel-intro-banner.meta { background: linear-gradient(90deg, rgba(8, 102, 255, 0.03) 0%, #ffffff 100%); }
+.light-theme .channel-intro-banner.meta { background: linear-gradient(90deg, rgba(99, 102, 241, 0.03) 0%, #ffffff 100%); }
 .light-theme .channel-intro-banner.google { background: linear-gradient(90deg, rgba(251, 178, 23, 0.03) 0%, #ffffff 100%); }
 .light-theme .channel-intro-banner.glsa { background: linear-gradient(90deg, rgba(132, 204, 22, 0.03) 0%, #ffffff 100%); }
 .light-theme .channel-intro-banner.seo { background: linear-gradient(90deg, rgba(168, 85, 247, 0.03) 0%, #ffffff 100%); }
@@ -2406,12 +2411,13 @@ body {
 
 /* Executive Insights */
 .light-theme .insights-container {
-  background: #ffffff !important;
+  background: #f8fafc !important;
   border-color: #cbd5e1 !important;
   box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.03) !important;
 }
-.light-theme .insight-bullet {
-  color: var(--brand-gold-dark) !important;
+.light-theme .insight-bullet-dot {
+  background: var(--brand-gold-dark) !important;
+  box-shadow: 0 0 8px rgba(217, 147, 12, 0.7), 0 0 4px rgba(217, 147, 12, 0.4) !important;
 }
 .light-theme .insight-text {
   color: #475569 !important;

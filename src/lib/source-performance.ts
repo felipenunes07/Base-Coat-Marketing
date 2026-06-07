@@ -16,9 +16,9 @@ export type SourcePerformanceRow = {
   purchases: number;
 };
 
-type AppUser = { role: 'agency' | 'client'; client_id: string | null };
-type Client = { id: string; name: string };
-type Contact = {
+export type AppUser = { role: 'agency' | 'client'; client_id: string | null };
+export type Client = { id: string; name: string };
+export type Contact = {
   id: string;
   client_id: string;
   source: string | null;
@@ -27,9 +27,10 @@ type Contact = {
   utm_medium: string | null;
   utm_campaign: string | null;
   tags: string[] | null;
+  created_date?: string;
 };
-type Opportunity = { contact_id: string; client_id: string; monetary_value: number; status: string };
-type Metric = {
+export type Opportunity = { contact_id: string; client_id: string; monetary_value: number; status: string };
+export type Metric = {
   client_id: string;
   spend_micros: number;
   leads: number;
@@ -37,7 +38,7 @@ type Metric = {
   impressions: number;
   purchases: number;
 };
-type PlatformRule = { platform: string; keywords: string[] };
+export type PlatformRule = { platform: string; keywords: string[] };
 
 export type PerformanceResponse = {
   rows: SourcePerformanceRow[];
@@ -72,7 +73,7 @@ function toNumber(value: unknown) {
   return typeof value === 'number' ? value : Number(value ?? 0);
 }
 
-function attributeContact(contact: Contact, rules: PlatformRule[]) {
+export function attributeContact(contact: Contact, rules: PlatformRule[]) {
   const signals = [
     [contact.utm_source, contact.utm_medium, contact.utm_campaign].filter(Boolean).join(' '),
     contact.last_general_source,
