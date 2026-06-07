@@ -38,6 +38,7 @@ body {
   color: var(--ink);
   font-family: 'Plus Jakarta Sans', Inter, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  zoom: 0.8; /* Scales layout to 80% by default for cleaner readability */
 }
 
 /* Animations */
