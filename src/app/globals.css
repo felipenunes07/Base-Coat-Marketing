@@ -2510,5 +2510,47 @@ body {
   -webkit-backdrop-filter: blur(16px);
 }
 
+/* Clickable KPI cards inside Meta Ads view */
+.dense-kpi.clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dense-kpi.clickable:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(251, 178, 23, 0.35);
+  transform: translateY(-1.5px);
+}
+
+.dense-kpi.clickable.active-metric {
+  background: rgba(251, 178, 23, 0.08);
+  border-color: var(--brand-gold);
+  box-shadow: 0 0 14px rgba(251, 178, 23, 0.18);
+}
+
+.dense-kpi.clickable.active-metric-secondary {
+  background: rgba(33, 44, 61, 0.3);
+  border-color: #212c3d;
+  box-shadow: 0 0 14px rgba(33, 44, 61, 0.25);
+}
+
+.light-theme .dense-kpi.clickable:hover {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(217, 147, 12, 0.35);
+}
+
+.light-theme .dense-kpi.clickable.active-metric {
+  background: rgba(251, 178, 23, 0.06);
+  border-color: var(--brand-gold-dark);
+  box-shadow: 0 0 12px rgba(217, 147, 12, 0.15);
+}
+
+.light-theme .dense-kpi.clickable.active-metric-secondary {
+  background: rgba(33, 44, 61, 0.08);
+  border-color: #212c3d;
+  box-shadow: 0 0 12px rgba(33, 44, 61, 0.15);
+}
+
 
 

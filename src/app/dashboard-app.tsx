@@ -108,7 +108,8 @@ export default function DashboardApp() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('leads');
   const [selectedClient, setSelectedClient] = useState('all');
-  
+  const [selectedMetaMetrics, setSelectedMetaMetrics] = useState<string[]>(['revenue']);
+
   // Custom navigation tab state
   const [activeTab, setActiveTab] = useState<string>('blended');
   const [overviewMetric, setOverviewMetric] = useState<'revenue' | 'leads'>('revenue');
@@ -141,53 +142,53 @@ export default function DashboardApp() {
 
   useEffect(() => {
     if (!session) return;
-    
+
     async function loadTimeSeries() {
       setTimeSeriesLoading(true);
       try {
         const { data: rulesData } = await supabase
           .from('platform_tag_rules')
           .select('platform, keywords');
-        
+
         const contactsQuery = supabase
           .from('contacts')
           .select('id, client_id, source, last_general_source, utm_source, utm_medium, utm_campaign, tags, created_date')
           .gte('created_date', start)
           .lte('created_date', end);
-          
+
         if (selectedClient !== 'all') {
           contactsQuery.eq('client_id', selectedClient);
         }
         const { data: contactsData } = await contactsQuery;
-        
+
         const opportunitiesQuery = supabase
           .from('opportunities')
           .select('contact_id, monetary_value')
           .eq('status', 'won');
-          
+
         if (selectedClient !== 'all') {
           opportunitiesQuery.eq('client_id', selectedClient);
         }
         const { data: opportunitiesData } = await opportunitiesQuery;
-        
+
         const metricsQuery = supabase
           .from('meta_ads_metrics')
-          .select('date, spend_micros, leads')
+          .select('date, spend_micros, leads, clicks, impressions, purchases')
           .gte('date', start)
           .lte('date', end);
-          
+
         if (selectedClient !== 'all') {
           metricsQuery.eq('client_id', selectedClient);
         }
         const { data: metricsData } = await metricsQuery;
-        
+
         const revenueMap = new Map<string, number>();
         if (opportunitiesData) {
           for (const opp of opportunitiesData) {
             revenueMap.set(opp.contact_id, (revenueMap.get(opp.contact_id) ?? 0) + Number(opp.monetary_value || 0));
           }
         }
-        
+
         const monthlyAttr = new Map<string, { leads: number, revenue: number }>();
         if (contactsData && rulesData) {
           for (const contact of contactsData) {
@@ -200,7 +201,7 @@ export default function DashboardApp() {
             } else {
               matches = (channel === activeTab);
             }
-            
+
             if (matches) {
               const dateStr = contact.created_date ? contact.created_date.split('T')[0] : '';
               if (dateStr) {
@@ -213,50 +214,82 @@ export default function DashboardApp() {
             }
           }
         }
-        
-        const monthlyMet = new Map<string, { spend: number, metaLeads: number }>();
+
+        const monthlyMet = new Map<string, { spend: number, metaLeads: number, clicks: number, impressions: number, purchases: number }>();
         if (metricsData && (activeTab === 'blended' || activeTab === 'meta_ads')) {
           for (const met of metricsData) {
             const dateStr = met.date ? met.date.split('T')[0] : '';
             if (dateStr) {
               const mStr = dateStr.substring(0, 7); // "YYYY-MM"
-              const current = monthlyMet.get(mStr) ?? { spend: 0, metaLeads: 0 };
+              const current = monthlyMet.get(mStr) ?? { spend: 0, metaLeads: 0, clicks: 0, impressions: 0, purchases: 0 };
               current.spend += Number(met.spend_micros || 0) / 1_000_000;
               current.metaLeads += Number(met.leads || 0);
+              current.clicks += Number(met.clicks || 0);
+              current.impressions += Number(met.impressions || 0);
+              current.purchases += Number(met.purchases || 0);
               monthlyMet.set(mStr, current);
             }
           }
         }
-        
+
         const points = [];
         let curr = new Date(start + 'T00:00:00Z');
         const stop = new Date(end + 'T00:00:00Z');
         curr.setUTCDate(1); // align to start of month
-        
+
         while (curr <= stop) {
           const mStr = curr.toISOString().split('T')[0].substring(0, 7);
           const attr = monthlyAttr.get(mStr) ?? { leads: 0, revenue: 0 };
-          const met = monthlyMet.get(mStr) ?? { spend: 0, metaLeads: 0 };
-          
-          if (attr.leads > 0 || attr.revenue > 0 || met.spend > 0 || met.metaLeads > 0) {
+          const met = monthlyMet.get(mStr) ?? { spend: 0, metaLeads: 0, clicks: 0, impressions: 0, purchases: 0 };
+
+          if (attr.leads > 0 || attr.revenue > 0 || met.spend > 0 || met.metaLeads > 0 || met.clicks > 0 || met.impressions > 0 || met.purchases > 0) {
             const PT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             const mIdx = curr.getUTCMonth();
             const yShort = curr.getUTCFullYear().toString().slice(-2);
             const formattedDate = `${PT_MONTHS[mIdx]}/${yShort}`;
-            
+
+            const leads = attr.leads;
+            const revenue = attr.revenue;
+            const spend = Math.round(met.spend);
+            const metaLeads = met.metaLeads;
+            const clicks = met.clicks;
+            const impressions = met.impressions;
+            const purchases = met.purchases;
+
+            const roas = spend > 0 ? Number((revenue / spend).toFixed(2)) : 0;
+            const rev_per_lead = leads > 0 ? Number((revenue / leads).toFixed(2)) : 0;
+            const ctr = impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0;
+            const cpc = clicks > 0 ? Number((spend / clicks).toFixed(2)) : 0;
+            const meta_cpl = metaLeads > 0 ? Number((spend / metaLeads).toFixed(2)) : 0;
+            const crm_cpl = leads > 0 ? Number((spend / leads).toFixed(2)) : 0;
+            const cpa = purchases > 0 ? Number((spend / purchases).toFixed(2)) : 0;
+
             points.push({
               date: mStr + '-01',
               label: formattedDate,
-              leads: attr.leads,
-              revenue: attr.revenue,
-              spend: Math.round(met.spend),
-              metaLeads: met.metaLeads
+              crm_leads: leads,
+              revenue: revenue,
+              spend: spend,
+              meta_leads: metaLeads,
+              clicks: clicks,
+              impressions: impressions,
+              purchases: purchases,
+              roas,
+              rev_per_lead,
+              ctr,
+              cpc,
+              meta_cpl,
+              crm_cpl,
+              cpa,
+              // Keep legacy fields for fallback blended tab compatibility
+              leads: leads,
+              metaLeads: metaLeads
             });
           }
-          
+
           curr.setUTCMonth(curr.getUTCMonth() + 1);
         }
-        
+
         setTimeSeriesData(points);
       } catch (err) {
         console.error('Error loading monthly data:', err);
@@ -264,7 +297,7 @@ export default function DashboardApp() {
         setTimeSeriesLoading(false);
       }
     }
-    
+
     void loadTimeSeries();
   }, [session, start, end, selectedClient, activeTab]);
 
@@ -567,15 +600,48 @@ export default function DashboardApp() {
         .filter((row) => row.source_key === activeTab)
         .reduce((map, row) => {
           const client = row.client_name;
-          const current = map.get(client) ?? { name: client, leads: 0, revenue: 0, spend: 0, metaLeads: 0 };
+          const current = map.get(client) ?? {
+            name: client,
+            leads: 0,
+            revenue: 0,
+            spend: 0,
+            metaLeads: 0,
+            clicks: 0,
+            impressions: 0,
+            purchases: 0
+          };
           current.leads += row.leads;
           current.revenue += row.won_revenue;
           current.spend += row.spend;
           current.metaLeads += row.meta_reported_leads;
+          current.clicks += row.clicks;
+          current.impressions += row.impressions;
+          current.purchases += row.purchases;
           map.set(client, current);
           return map;
-        }, new Map<string, { name: string; leads: number; revenue: number; spend: number; metaLeads: number }>());
-      return Array.from(grouped.values()).sort((a, b) => b.leads - a.leads);
+        }, new Map<string, any>());
+
+      return Array.from(grouped.values()).map((row: any) => {
+        const roas = row.spend > 0 ? Number((row.revenue / row.spend).toFixed(2)) : 0;
+        const rev_per_lead = row.leads > 0 ? Number((row.revenue / row.leads).toFixed(2)) : 0;
+        const ctr = row.impressions > 0 ? Number(((row.clicks / row.impressions) * 100).toFixed(2)) : 0;
+        const cpc = row.clicks > 0 ? Number((row.spend / row.clicks).toFixed(2)) : 0;
+        const meta_cpl = row.metaLeads > 0 ? Number((row.spend / row.metaLeads).toFixed(2)) : 0;
+        const crm_cpl = row.leads > 0 ? Number((row.spend / row.leads).toFixed(2)) : 0;
+        const cpa = row.purchases > 0 ? Number((row.spend / row.purchases).toFixed(2)) : 0;
+        return {
+          ...row,
+          crm_leads: row.leads,
+          meta_leads: row.metaLeads,
+          roas,
+          rev_per_lead,
+          ctr,
+          cpc,
+          meta_cpl,
+          crm_cpl,
+          cpa
+        };
+      }).sort((a, b) => b.crm_leads - a.crm_leads);
     }
   }, [visibleRows, activeTab]);
 
@@ -592,14 +658,14 @@ export default function DashboardApp() {
   // Automated performance readout insights
   const executiveInsights = useMemo(() => {
     const channelRevenues = chartRows.map(r => ({ name: r.name, revenue: r.revenue, leads: r.leads }));
-    const topChannel = channelRevenues.length > 0 
+    const topChannel = channelRevenues.length > 0
       ? channelRevenues.reduce((max, r) => r.revenue > max.revenue ? r : max, { name: '', revenue: -1, leads: 0 })
       : null;
-      
+
     const organicRevenue = visibleRows
       .filter(r => r.source_key === 'seo' || r.source_key === 'email' || r.source_key === 'unknown')
       .reduce((sum, r) => sum + r.won_revenue, 0);
-      
+
     const googleRow = visibleRows.find(r => r.source_key === 'google_ads');
     const googleRevPerLead = googleRow && googleRow.leads > 0 ? googleRow.won_revenue / googleRow.leads : 0;
 
@@ -610,13 +676,13 @@ export default function DashboardApp() {
         `**${topChannel.name}** is your primary revenue engine, contributing **${money(topChannel.revenue)}** (${pct.toFixed(0)}% of total blended revenue) from **${topChannel.leads}** attributed CRM leads.`
       );
     }
-    
+
     if (organicRevenue > 0) {
       insights.push(
         `Organic channels (SEO, Email, and Direct traffic) generated a combined **${money(organicRevenue)}** in won revenue with **zero platform ad spend**.`
       );
     }
-    
+
     if (googleRow && googleRow.leads > 0) {
       insights.push(
         `**Google Ads** generated **${googleRow.leads}** CRM leads with an average value of **${money(googleRevPerLead)}** per lead, demonstrating steady customer intent.`
@@ -626,7 +692,7 @@ export default function DashboardApp() {
         `No leads were captured from paid Google search during this period. Consider verifying Google tracking tags.`
       );
     }
-    
+
     return insights;
   }, [visibleRows, chartRows, channelTotals]);
 
@@ -789,40 +855,40 @@ export default function DashboardApp() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
-                    <XAxis 
-                      dataKey="name" 
-                      tickLine={false} 
-                      axisLine={false} 
-                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }} 
+                    <XAxis
+                      dataKey="name"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 12, fontWeight: 600 }}
                     />
-                    <YAxis 
+                    <YAxis
                       yAxisId="left"
-                      tickLine={false} 
-                      axisLine={false} 
-                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }}
                       tickFormatter={(v) => compact(v)}
                     />
-                    <YAxis 
+                    <YAxis
                       yAxisId="right"
                       orientation="right"
-                      tickLine={false} 
-                      axisLine={false} 
-                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11, fontWeight: 500 }}
                       tickFormatter={(v) => `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}
                     />
                     <Tooltip
                       cursor={{ fill: theme === 'dark' ? 'rgba(241, 245, 249, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
-                      contentStyle={theme === 'dark' ? { 
-                        background: '#16161a', 
-                        borderRadius: '12px', 
-                        border: 'none', 
+                      contentStyle={theme === 'dark' ? {
+                        background: '#16161a',
+                        borderRadius: '12px',
+                        border: 'none',
                         color: 'white',
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
                         padding: '10px 14px'
                       } : {
-                        background: '#ffffff', 
-                        borderRadius: '12px', 
-                        border: '1px solid #e2e8f0', 
+                        background: '#ffffff',
+                        borderRadius: '12px',
+                        border: '1px solid #e2e8f0',
                         color: '#0f172a',
                         boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.05)',
                         padding: '10px 14px'
@@ -833,20 +899,20 @@ export default function DashboardApp() {
                         return [compact(Number(value)), 'CRM Leads'];
                       }}
                     />
-                    <Bar 
+                    <Bar
                       yAxisId="left"
-                      dataKey="leads" 
+                      dataKey="leads"
                       name="Leads"
                       fill="url(#leadsBarGrad)"
-                      radius={[4, 4, 0, 0]} 
+                      radius={[4, 4, 0, 0]}
                       barSize={18}
                     />
-                    <Bar 
+                    <Bar
                       yAxisId="right"
-                      dataKey="revenue" 
+                      dataKey="revenue"
                       name="Revenue"
                       fill="url(#revenueBarGrad)"
-                      radius={[4, 4, 0, 0]} 
+                      radius={[4, 4, 0, 0]}
                       barSize={18}
                     />
                   </BarChart>
@@ -866,13 +932,13 @@ export default function DashboardApp() {
                 const revPct = channelTotals.revenue > 0 ? (row.revenue / channelTotals.revenue) * 100 : 0;
                 const channelRoas = row.spend > 0 ? row.revenue / row.spend : null;
                 const channelCplVal = row.leads > 0 && row.spend > 0 ? row.spend / row.leads : null;
-                
+
                 const isRevenueMetric = overviewMetric === 'revenue';
                 const mainPct = isRevenueMetric ? revPct : leadsPct;
                 const mainVal = isRevenueMetric ? money(row.revenue) : `${row.leads} leads`;
 
                 const isPaidChannel = key === 'meta_ads' || key === 'meta' || key === 'google_ads' || key === 'google' || key === 'glsa';
-                
+
                 // Channel icon mapping
                 let channelIcon = <Compass className="channel-card-icon direct" size={15} />;
                 if (key === 'meta_ads' || key === 'meta') {
@@ -901,11 +967,11 @@ export default function DashboardApp() {
                         </div>
                         <span className="card-channel-share">{mainPct.toFixed(0)}% share</span>
                       </div>
-                      
+
                       <div className="card-primary-value">
                         <strong className="value-large">{mainVal}</strong>
                       </div>
-                      
+
                       {/* Mini progress bar */}
                       <div className="mini-progress-track">
                         <div className={`mini-progress-fill ${key}`} style={{ width: `${mainPct}%` }}></div>
@@ -986,6 +1052,69 @@ export default function DashboardApp() {
   }
 
   function renderMetaDashboard() {
+    const getMetaMetricConfig = (key: string) => {
+      const configs: Record<string, {
+        label: string;
+        color: string;
+        type: 'currency' | 'count' | 'ratio' | 'percentage';
+        formatter: (v: number) => string;
+      }> = {
+        revenue: { label: 'Won Revenue', color: '#fbb217', type: 'currency', formatter: (v) => money(v) },
+        spend: { label: 'Meta Spend', color: '#ef4444', type: 'currency', formatter: (v) => money(v) },
+        roas: { label: 'Platform ROAS', color: '#10b981', type: 'ratio', formatter: (v) => `${v.toFixed(2)}x` },
+        rev_per_lead: { label: 'Rev / CRM Lead', color: '#8b5cf6', type: 'currency', formatter: (v) => money(v) },
+        impressions: { label: 'Impressions', color: '#3b82f6', type: 'count', formatter: (v) => compact(v) },
+        clicks: { label: 'Clicks', color: '#f59e0b', type: 'count', formatter: (v) => compact(v) },
+        ctr: { label: 'CTR', color: '#ec4899', type: 'percentage', formatter: (v) => `${v.toFixed(2)}%` },
+        cpc: { label: 'CPC', color: '#a855f7', type: 'currency', formatter: (v) => moneyWithCents(v) },
+        meta_leads: { label: 'Meta Reported Leads', color: '#212c3d', type: 'count', formatter: (v) => compact(v) },
+        crm_leads: { label: 'CRM Tracked Leads', color: '#2dd4bf', type: 'count', formatter: (v) => compact(v) },
+        meta_cpl: { label: 'CPL (Meta reported)', color: '#f43f5e', type: 'currency', formatter: (v) => moneyWithCents(v) },
+        crm_cpl: { label: 'CRM CPL', color: '#06b6d4', type: 'currency', formatter: (v) => moneyWithCents(v) },
+        purchases: { label: 'Purchases', color: '#10b981', type: 'count', formatter: (v) => compact(v) },
+        cpa: { label: 'CPA', color: '#e11d48', type: 'currency', formatter: (v) => moneyWithCents(v) }
+      };
+      return configs[key] ?? configs.revenue;
+    };
+
+    const handleMetricClick = (key: string, event: React.MouseEvent) => {
+      const isCtrl = event.ctrlKey || event.metaKey;
+      if (isCtrl) {
+        if (selectedMetaMetrics.includes(key)) {
+          if (selectedMetaMetrics.length > 1) {
+            setSelectedMetaMetrics(selectedMetaMetrics.filter((m) => m !== key));
+          }
+        } else {
+          setSelectedMetaMetrics([...selectedMetaMetrics, key]);
+        }
+      } else {
+        setSelectedMetaMetrics([key]);
+      }
+    };
+
+    const firstMetric = selectedMetaMetrics[0] ?? 'revenue';
+    const config = getMetaMetricConfig(firstMetric);
+
+    // Dynamic chart description title
+    const chartTitle = selectedMetaMetrics.length > 1
+      ? selectedMetaMetrics.map(m => getMetaMetricConfig(m).label).join(' & ')
+      : config.label;
+
+    const getMetricClass = (key: string) => {
+      const idx = selectedMetaMetrics.indexOf(key);
+      if (idx === 0) return 'dense-kpi clickable active-metric';
+      if (idx === 1) return 'dense-kpi clickable active-metric-secondary';
+      if (idx === 2) return 'dense-kpi clickable active-metric-tertiary';
+      return 'dense-kpi clickable';
+    };
+
+    const getMetricColor = (idx: number) => {
+      if (idx === 0) return '#fbb217';
+      if (idx === 1) return '#212c3d';
+      if (idx === 2) return '#64748b';
+      return '#475569';
+    };
+
     return (
       <>
         {/* Intro banner */}
@@ -999,6 +1128,24 @@ export default function DashboardApp() {
           </div>
         </div>
 
+        {/* Dynamic selector instruction */}
+        <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{
+            background: 'rgba(251, 178, 23, 0.1)',
+            color: 'var(--brand-gold)',
+            fontSize: '11px',
+            padding: '3px 8px',
+            borderRadius: '4px',
+            fontWeight: 700,
+            textTransform: 'uppercase'
+          }}>
+            Interativo
+          </span>
+          <span style={{ fontSize: '12px', color: theme === 'dark' ? '#cbd5e1' : '#475569', fontWeight: 600 }}>
+            Clique em qualquer métrica abaixo para ver seu desempenho. <strong>Segure Ctrl / Cmd</strong> para comparar duas métricas ao mesmo tempo.
+          </span>
+        </div>
+
         {/* KPI Subgrids grouped logically */}
         <div className="meta-kpi-groups">
           <div className="kpi-group-card">
@@ -1007,19 +1154,31 @@ export default function DashboardApp() {
               Financial Performance
             </h4>
             <div className="kpi-subgrid-dense">
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('revenue')}
+                onClick={(e) => handleMetricClick('revenue', e)}
+              >
                 <span className="dense-label">Won Revenue</span>
                 <strong className="dense-value">{money(displayedTotals.revenue)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('spend')}
+                onClick={(e) => handleMetricClick('spend', e)}
+              >
                 <span className="dense-label">Meta Spend</span>
                 <strong className="dense-value">{money(displayedTotals.spend)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('roas')}
+                onClick={(e) => handleMetricClick('roas', e)}
+              >
                 <span className="dense-label">Platform ROAS</span>
                 <strong className="dense-value highlight-gold">{roas(channelBlendedRoas)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('rev_per_lead')}
+                onClick={(e) => handleMetricClick('rev_per_lead', e)}
+              >
                 <span className="dense-label">Rev / CRM Lead</span>
                 <strong className="dense-value">{channelRevenuePerLead ? money(channelRevenuePerLead) : 'N/A'}</strong>
               </div>
@@ -1032,19 +1191,31 @@ export default function DashboardApp() {
               Funnel & Ad Delivery
             </h4>
             <div className="kpi-subgrid-dense">
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('impressions')}
+                onClick={(e) => handleMetricClick('impressions', e)}
+              >
                 <span className="dense-label">Impressions</span>
                 <strong className="dense-value">{compact(displayedTotals.impressions)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('clicks')}
+                onClick={(e) => handleMetricClick('clicks', e)}
+              >
                 <span className="dense-label">Clicks</span>
                 <strong className="dense-value">{compact(displayedTotals.clicks)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('ctr')}
+                onClick={(e) => handleMetricClick('ctr', e)}
+              >
                 <span className="dense-label">CTR</span>
                 <strong className="dense-value">{channelMetaCtr > 0 ? `${channelMetaCtr.toFixed(2)}%` : '0%'}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('cpc')}
+                onClick={(e) => handleMetricClick('cpc', e)}
+              >
                 <span className="dense-label">CPC</span>
                 <strong className="dense-value">{moneyWithCents(channelMetaCpc)}</strong>
               </div>
@@ -1057,37 +1228,53 @@ export default function DashboardApp() {
               Conversions & Attribution
             </h4>
             <div className="kpi-subgrid-dense">
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('meta_leads')}
+                onClick={(e) => handleMetricClick('meta_leads', e)}
+              >
                 <span className="dense-label">Meta Reported Leads</span>
                 <strong className="dense-value">{compact(displayedTotals.metaLeads)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('crm_leads')}
+                onClick={(e) => handleMetricClick('crm_leads', e)}
+              >
                 <span className="dense-label">CRM Tracked Leads</span>
                 <strong className="dense-value">{compact(displayedTotals.leads)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('meta_cpl')}
+                onClick={(e) => handleMetricClick('meta_cpl', e)}
+              >
                 <span className="dense-label">CPL (Meta reported)</span>
                 <strong className="dense-value">{moneyWithCents(channelCostPerMetaLead)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('crm_cpl')}
+                onClick={(e) => handleMetricClick('crm_cpl', e)}
+              >
                 <span className="dense-label">CRM CPL</span>
                 <strong className="dense-value">
                   {displayedTotals.leads > 0 ? moneyWithCents(displayedTotals.spend / displayedTotals.leads) : 'N/A'}
                 </strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('purchases')}
+                onClick={(e) => handleMetricClick('purchases', e)}
+              >
                 <span className="dense-label">Purchases</span>
                 <strong className="dense-value">{compact(displayedTotals.purchases)}</strong>
               </div>
-              <div className="dense-kpi">
+              <div
+                className={getMetricClass('cpa')}
+                onClick={(e) => handleMetricClick('cpa', e)}
+              >
                 <span className="dense-label">CPA</span>
                 <strong className="dense-value">{moneyWithCents(channelMetaCpa)}</strong>
               </div>
             </div>
           </div>
         </div>
-
-
 
         {/* Visual Attribution Split (CRM vs Meta reported) */}
         {activeMonthPoint && (
@@ -1104,8 +1291,8 @@ export default function DashboardApp() {
             <span style={{ fontSize: '13px', color: theme === 'dark' ? '#cbd5e1' : '#334155', fontWeight: 500 }}>
               Viewing metrics for <strong>{activeMonthPoint.label}</strong> only. Click "Show entire period" to reset.
             </span>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setActiveMonthPoint(null)}
               style={{
                 fontSize: '12px',
@@ -1124,138 +1311,205 @@ export default function DashboardApp() {
         )}
         <section className="workspace">
           <div className="chart-panel">
-            <div className="section-heading">
-              <p className="eyebrow">Attribution Gap</p>
-              <h2>
-                {(selectedClient === 'all' && isAgency)
-                  ? "CRM Tracked Leads vs Meta Reported Leads"
-                  : "Won Revenue vs Meta Reported Leads"}
-              </h2>
+            <div className="section-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <p className="eyebrow">Attribution Trend</p>
+                <h2>
+                  {(selectedClient === 'all' && isAgency)
+                    ? `${chartTitle} by Client`
+                    : `${chartTitle} Over Time`}
+                </h2>
+              </div>
+              {/* Custom Legend dynamically rendered next to the title when comparing metrics */}
+              {selectedMetaMetrics.length > 1 && (
+                <div style={{ display: 'flex', gap: '16px', marginTop: '6px', flexWrap: 'wrap' }}>
+                  {selectedMetaMetrics.map((m, idx) => {
+                    const conf = getMetaMetricConfig(m);
+                    const color = idx === 0 ? '#fbb217' : '#212c3d';
+                    return (
+                      <div key={m} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: color,
+                          display: 'inline-block'
+                        }} />
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: theme === 'dark' ? '#cbd5e1' : '#475569'
+                        }}>
+                          {conf.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div className="chart-frame">
               {mounted ? (
                 <ResponsiveContainer width="100%" height={320}>
                   {(selectedClient === 'all' && isAgency) ? (
                     <BarChart data={chartRows} margin={{ top: 10, right: 40, left: -5, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="crmLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#1e293b" : "#0f172a"} stopOpacity={0.85} />
-                      </linearGradient>
-                      <linearGradient id="metaLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#f59e0b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#d97706"} stopOpacity={0.85} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                    <Tooltip
-                      cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
-                      contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
-                      labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#94a3b8' : '#1e293b' }}
-                      formatter={(value, name) => [compact(Number(value)), name]}
-                    />
-                    <Legend content={renderCustomLegend} />
-                    <Bar dataKey="leads" name="CRM Tracked Leads" fill="url(#crmLeadsGradient)" radius={[4, 4, 0, 0]} barSize={24} />
-                    <Bar dataKey="metaLeads" name="Meta Reported Leads" fill="url(#metaLeadsGradient)" radius={[4, 4, 0, 0]} barSize={24} />
-                  </BarChart>
-                ) : (
-                  <ComposedChart 
-                    data={timeSeriesData} 
-                    margin={{ top: 10, right: 40, left: -5, bottom: 5 }}
-                    style={{ cursor: 'pointer' }}
-                    onClick={(state: any) => {
-                      if (state && state.activeLabel) {
-                        const point = timeSeriesData.find((p: any) => p.label === state.activeLabel);
-                        if (point) setActiveMonthPoint(point);
-                      }
-                    }}
-                  >
-                    <defs>
-                      <linearGradient id="metaRevBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#1e293b" : "#0f172a"} stopOpacity={0.85} />
-                      </linearGradient>
-                      <linearGradient id="metaLeadsBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.85} />
-                      </linearGradient>
-                      <linearGradient id="spendBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#f59e0b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#d97706"} stopOpacity={0.85} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <YAxis yAxisId="left" label={{ value: 'Meta Leads', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} allowDecimals={false} />
-                    <YAxis yAxisId="right" label={{ value: 'Revenue / Spend', angle: 90, position: 'insideRight', fill: '#64748b', fontSize: 11 }} orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => `$${v >= 1000 ? (v/1000).toFixed(0) + 'k' : v}`} />
-                    <Tooltip
-                      cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
-                      contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
-                      labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#1e293b' }}
-                      formatter={(value, name) => {
-                        if (name === 'Spend' || name === 'Won Revenue') return [money(Number(value)), name];
-                        return [compact(Number(value)), name];
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11 }} />
+                      <YAxis
+                        yAxisId="left"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11 }}
+                        tickFormatter={(v) => {
+                          if (config.type === 'currency') return `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`;
+                          if (config.type === 'percentage') return `${v}%`;
+                          if (config.type === 'ratio') return `${v}x`;
+                          return compact(v);
+                        }}
+                      />
+                      {selectedMetaMetrics.length > 1 && (
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11 }}
+                          tickFormatter={(v) => {
+                            const secondConfig = getMetaMetricConfig(selectedMetaMetrics[1]);
+                            if (secondConfig.type === 'currency') return `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`;
+                            if (secondConfig.type === 'percentage') return `${v}%`;
+                            if (secondConfig.type === 'ratio') return `${v}x`;
+                            return compact(v);
+                          }}
+                        />
+                      )}
+                      <Tooltip
+                        cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                        contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
+                        labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#1e293b' }}
+                        formatter={(value, name) => {
+                          const matchedMetric = selectedMetaMetrics.find(m => getMetaMetricConfig(m).label === name) ?? firstMetric;
+                          const matchedConfig = getMetaMetricConfig(matchedMetric);
+                          return [matchedConfig.formatter(Number(value)), matchedConfig.label];
+                        }}
+                      />
+                      {selectedMetaMetrics.map((m, idx) => {
+                        const mConfig = getMetaMetricConfig(m);
+                        const color = idx === 0 ? '#fbb217' : '#212c3d';
+                        return (
+                          <Bar
+                            key={m}
+                            yAxisId={idx === 0 ? "left" : "right"}
+                            dataKey={m}
+                            name={mConfig.label}
+                            fill={color}
+                            radius={[4, 4, 0, 0]}
+                            barSize={selectedMetaMetrics.length > 1 ? 16 : 28}
+                          />
+                        );
+                      })}
+                    </BarChart>
+                  ) : (
+                    <ComposedChart
+                      data={timeSeriesData}
+                      margin={{ top: 10, right: 40, left: -5, bottom: 5 }}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(state: any) => {
+                        if (state && state.activeLabel) {
+                          const point = timeSeriesData.find((p: any) => p.label === state.activeLabel);
+                          if (point) setActiveMonthPoint(point);
+                        }
                       }}
-                    />
-                    <Legend content={(props) => (
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme === 'dark' ? '#94a3b8' : '#1e293b', display: 'inline-block' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: theme === 'dark' ? '#94a3b8' : '#475569' }}>Won Revenue</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '12px', height: '3px', backgroundColor: 'var(--meta-blue)', display: 'inline-block' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: theme === 'dark' ? '#94a3b8' : '#475569' }}>Meta Reported Leads</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme === 'dark' ? '#fbb217' : '#f59e0b', display: 'inline-block' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: theme === 'dark' ? '#94a3b8' : '#475569' }}>Spend</span>
-                        </div>
-                      </div>
-                    )} />
-                    <Bar yAxisId="right" dataKey="revenue" name="Won Revenue" radius={[4, 4, 0, 0]} barSize={24}>
-                      {timeSeriesData.map((entry, index) => {
-                        const isSelected = activeMonthPoint ? activeMonthPoint.label === entry.label : true;
-                        return (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill="url(#metaRevBarGrad)" 
-                            opacity={isSelected ? 1 : 0.35} 
-                            style={{ cursor: 'pointer' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMonthPoint(entry);
-                            }}
-                          />
-                        );
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11 }} />
+                      <YAxis
+                        yAxisId="left"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11 }}
+                        tickFormatter={(v) => {
+                          if (config.type === 'currency') return `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`;
+                          if (config.type === 'percentage') return `${v}%`;
+                          if (config.type === 'ratio') return `${v}x`;
+                          return compact(v);
+                        }}
+                      />
+                      {selectedMetaMetrics.length > 1 && (
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569', fontSize: 11 }}
+                          tickFormatter={(v) => {
+                            const secondConfig = getMetaMetricConfig(selectedMetaMetrics[1]);
+                            if (secondConfig.type === 'currency') return `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`;
+                            if (secondConfig.type === 'percentage') return `${v}%`;
+                            if (secondConfig.type === 'ratio') return `${v}x`;
+                            return compact(v);
+                          }}
+                        />
+                      )}
+                      <Tooltip
+                        cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                        contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
+                        labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#1e293b' }}
+                        formatter={(value, name) => {
+                          const matchedMetric = selectedMetaMetrics.find(m => getMetaMetricConfig(m).label === name) ?? firstMetric;
+                          const matchedConfig = getMetaMetricConfig(matchedMetric);
+                          return [matchedConfig.formatter(Number(value)), matchedConfig.label];
+                        }}
+                      />
+                      {selectedMetaMetrics.map((m, idx) => {
+                        const mConfig = getMetaMetricConfig(m);
+                        const isAreaOrLine = mConfig.type === 'ratio' || mConfig.type === 'percentage';
+                        const axisId = idx === 0 ? "left" : "right";
+                        const color = idx === 0 ? '#fbb217' : '#212c3d';
+                        if (isAreaOrLine) {
+                          return (
+                            <Area
+                              key={m}
+                              yAxisId={axisId}
+                              type="monotone"
+                              dataKey={m}
+                              name={mConfig.label}
+                              fill={color + '15'}
+                              stroke={color}
+                              strokeWidth={3}
+                            />
+                          );
+                        } else {
+                          return (
+                            <Bar
+                              key={m}
+                              yAxisId={axisId}
+                              dataKey={m}
+                              name={mConfig.label}
+                              fill={color}
+                              radius={[4, 4, 0, 0]}
+                              barSize={selectedMetaMetrics.length > 1 ? 16 : 28}
+                            >
+                              {timeSeriesData.map((entry, index) => {
+                                const isSelected = activeMonthPoint ? activeMonthPoint.label === entry.label : true;
+                                return (
+                                  <Cell
+                                    key={`cell-${index}`}
+                                    fill={color}
+                                    opacity={isSelected ? 1 : 0.35}
+                                  />
+                                );
+                              })}
+                            </Bar>
+                          );
+                        }
                       })}
-                    </Bar>
-                    <Line yAxisId="left" type="monotone" dataKey="metaLeads" name="Meta Reported Leads" stroke="var(--meta-blue)" strokeWidth={3} dot={{ r: 4, fill: 'var(--meta-blue)', strokeWidth: 1, stroke: '#ffffff' }} activeDot={{ r: 6 }} />
-                    <Bar yAxisId="right" dataKey="spend" name="Spend" radius={[4, 4, 0, 0]} barSize={24}>
-                      {timeSeriesData.map((entry, index) => {
-                        const isSelected = activeMonthPoint ? activeMonthPoint.label === entry.label : true;
-                        return (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill="url(#spendBarGrad)" 
-                            opacity={isSelected ? 1 : 0.35} 
-                            style={{ cursor: 'pointer' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMonthPoint(entry);
-                            }}
-                          />
-                        );
-                      })}
-                    </Bar>
-                  </ComposedChart>
-                )}
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: 320 }} />
-            )}
+                    </ComposedChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: 320 }} />
+              )}
             </div>
           </div>
 
@@ -1269,8 +1523,8 @@ export default function DashboardApp() {
             <div className="meta-ratio-bar">
               <span className="ratio-title">Attribution Matching Ratio</span>
               <div className="ratio-value">
-                {displayedTotals.metaLeads > 0 
-                  ? `${((displayedTotals.leads / displayedTotals.metaLeads) * 100).toFixed(1)}%` 
+                {displayedTotals.metaLeads > 0
+                  ? `${((displayedTotals.leads / displayedTotals.metaLeads) * 100).toFixed(1)}%`
                   : '0.0%'}
               </div>
               <p className="ratio-subtitle">CRM tracked leads vs Meta Ads self-reported conversions.</p>
@@ -1285,7 +1539,7 @@ export default function DashboardApp() {
 
   function renderGeneralChannelDashboard() {
     const channelName = sourceLabel(activeTab);
-    
+
     const getChannelDescription = () => {
       switch (activeTab) {
         case 'google_ads':
@@ -1325,7 +1579,7 @@ export default function DashboardApp() {
           };
       }
     };
-    
+
     const channelInfo = getChannelDescription();
 
     return (
@@ -1362,8 +1616,8 @@ export default function DashboardApp() {
             <span style={{ fontSize: '13px', color: theme === 'dark' ? '#cbd5e1' : '#334155', fontWeight: 500 }}>
               Viewing metrics for <strong>{activeMonthPoint.label}</strong> only. Click "Show entire period" to reset.
             </span>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setActiveMonthPoint(null)}
               style={{
                 fontSize: '12px',
@@ -1393,118 +1647,118 @@ export default function DashboardApp() {
                 <ResponsiveContainer width="100%" height={320}>
                   {(selectedClient === 'all' && isAgency) ? (
                     <BarChart data={chartRows} margin={{ top: 10, right: 40, left: -5, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="generalLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#1e293b" : "#0f172a"} stopOpacity={0.85} />
-                      </linearGradient>
-                      <linearGradient id="generalRevGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#f59e0b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#d97706"} stopOpacity={0.85} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                    <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
-                    <Tooltip
-                      cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
-                      contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
-                      labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#94a3b8' : '#1e293b' }}
-                      formatter={(value, name) => 
-                        name === 'Revenue' ? [money(Number(value)), 'Won Revenue'] : [compact(Number(value)), 'CRM Leads']
-                      }
-                    />
-                    <Legend content={renderCustomLegend} />
-                    <Bar yAxisId="left" dataKey="leads" name="CRM Leads" fill="url(#generalLeadsGradient)" radius={[4, 4, 0, 0]} barSize={28} />
-                    <Bar yAxisId="right" dataKey="revenue" name="Revenue" fill="url(#generalRevGradient)" radius={[4, 4, 0, 0]} barSize={28} />
-                  </BarChart>
-                ) : (
-                  <ComposedChart 
-                    data={timeSeriesData} 
-                    margin={{ top: 10, right: 40, left: -5, bottom: 5 }}
-                    style={{ cursor: 'pointer' }}
-                    onClick={(state: any) => {
-                      if (state && state.activePayload && state.activePayload.length > 0) {
-                        setActiveMonthPoint(state.activePayload[0].payload);
-                      }
-                    }}
-                  >
-                    <defs>
-                      <linearGradient id="generalLeadsBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#1e293b" : "#0f172a"} stopOpacity={0.85} />
-                      </linearGradient>
-                      <linearGradient id="generalRevBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#f59e0b"} stopOpacity={1} />
-                        <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#d97706"} stopOpacity={0.85} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <YAxis yAxisId="left" label={{ value: 'Leads', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} allowDecimals={false} />
-                    <YAxis yAxisId="right" label={{ value: 'Revenue', angle: 90, position: 'insideRight', fill: '#64748b', fontSize: 11 }} orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => `$${v >= 1000 ? (v/1000).toFixed(0) + 'k' : v}`} />
-                    <Tooltip
-                      cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
-                      contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
-                      labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#1e293b' }}
-                      formatter={(value, name) => {
-                        if (name === 'Revenue') return [money(Number(value)), 'Won Revenue'];
-                        return [compact(Number(value)), name];
+                      <defs>
+                        <linearGradient id="generalLeadsGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
+                          <stop offset="100%" stopColor={theme === 'dark' ? "#1e293b" : "#0f172a"} stopOpacity={0.85} />
+                        </linearGradient>
+                        <linearGradient id="generalRevGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#f59e0b"} stopOpacity={1} />
+                          <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#d97706"} stopOpacity={0.85} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                      <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                      <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
+                      <Tooltip
+                        cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                        contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
+                        labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#94a3b8' : '#1e293b' }}
+                        formatter={(value, name) =>
+                          name === 'Revenue' ? [money(Number(value)), 'Won Revenue'] : [compact(Number(value)), 'CRM Leads']
+                        }
+                      />
+                      <Legend content={renderCustomLegend} />
+                      <Bar yAxisId="left" dataKey="leads" name="CRM Leads" fill="url(#generalLeadsGradient)" radius={[4, 4, 0, 0]} barSize={28} />
+                      <Bar yAxisId="right" dataKey="revenue" name="Revenue" fill="url(#generalRevGradient)" radius={[4, 4, 0, 0]} barSize={28} />
+                    </BarChart>
+                  ) : (
+                    <ComposedChart
+                      data={timeSeriesData}
+                      margin={{ top: 10, right: 40, left: -5, bottom: 5 }}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(state: any) => {
+                        if (state && state.activePayload && state.activePayload.length > 0) {
+                          setActiveMonthPoint(state.activePayload[0].payload);
+                        }
                       }}
-                    />
-                    <Legend content={(props) => (
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme === 'dark' ? '#94a3b8' : '#1e293b', display: 'inline-block' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: theme === 'dark' ? '#94a3b8' : '#475569' }}>CRM Leads</span>
+                    >
+                      <defs>
+                        <linearGradient id="generalLeadsBarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={theme === 'dark' ? "#475569" : "#1e293b"} stopOpacity={1} />
+                          <stop offset="100%" stopColor={theme === 'dark' ? "#1e293b" : "#0f172a"} stopOpacity={0.85} />
+                        </linearGradient>
+                        <linearGradient id="generalRevBarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={theme === 'dark' ? "#fbb217" : "#f59e0b"} stopOpacity={1} />
+                          <stop offset="100%" stopColor={theme === 'dark' ? "#d9930c" : "#d97706"} stopOpacity={0.85} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)'} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                      <YAxis yAxisId="left" label={{ value: 'Leads', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} allowDecimals={false} />
+                      <YAxis yAxisId="right" label={{ value: 'Revenue', angle: 90, position: 'insideRight', fill: '#64748b', fontSize: 11 }} orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => `$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
+                      <Tooltip
+                        cursor={{ fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.03)', radius: 4 }}
+                        contentStyle={theme === 'dark' ? { background: '#16161a', borderRadius: '8px', border: 'none', color: 'white' } : { background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#0f172a' }}
+                        labelStyle={{ fontWeight: 'bold', color: theme === 'dark' ? '#cbd5e1' : '#1e293b' }}
+                        formatter={(value, name) => {
+                          if (name === 'Revenue') return [money(Number(value)), 'Won Revenue'];
+                          return [compact(Number(value)), name];
+                        }}
+                      />
+                      <Legend content={(props) => (
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme === 'dark' ? '#94a3b8' : '#1e293b', display: 'inline-block' }} />
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: theme === 'dark' ? '#94a3b8' : '#475569' }}>CRM Leads</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme === 'dark' ? '#fbb217' : '#f59e0b', display: 'inline-block' }} />
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: theme === 'dark' ? '#94a3b8' : '#475569' }}>Won Revenue</span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme === 'dark' ? '#fbb217' : '#f59e0b', display: 'inline-block' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: theme === 'dark' ? '#94a3b8' : '#475569' }}>Won Revenue</span>
-                        </div>
-                      </div>
-                    )} />
-                    <Bar yAxisId="left" dataKey="leads" name="CRM Leads" radius={[4, 4, 0, 0]} barSize={24}>
-                      {timeSeriesData.map((entry, index) => {
-                        const isSelected = activeMonthPoint ? activeMonthPoint.label === entry.label : true;
-                        return (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill="url(#generalLeadsBarGrad)" 
-                            opacity={isSelected ? 1 : 0.35} 
-                            style={{ cursor: 'pointer' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMonthPoint(entry);
-                            }}
-                          />
-                        );
-                      })}
-                    </Bar>
-                    <Bar yAxisId="right" dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]} barSize={24}>
-                      {timeSeriesData.map((entry, index) => {
-                        const isSelected = activeMonthPoint ? activeMonthPoint.label === entry.label : true;
-                        return (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill="url(#generalRevBarGrad)" 
-                            opacity={isSelected ? 1 : 0.35} 
-                            style={{ cursor: 'pointer' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMonthPoint(entry);
-                            }}
-                          />
-                        );
-                      })}
-                    </Bar>
-                  </ComposedChart>
-                )}
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: 320 }} />
-            )}
+                      )} />
+                      <Bar yAxisId="left" dataKey="leads" name="CRM Leads" radius={[4, 4, 0, 0]} barSize={24}>
+                        {timeSeriesData.map((entry, index) => {
+                          const isSelected = activeMonthPoint ? activeMonthPoint.label === entry.label : true;
+                          return (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill="url(#generalLeadsBarGrad)"
+                              opacity={isSelected ? 1 : 0.35}
+                              style={{ cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMonthPoint(entry);
+                              }}
+                            />
+                          );
+                        })}
+                      </Bar>
+                      <Bar yAxisId="right" dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]} barSize={24}>
+                        {timeSeriesData.map((entry, index) => {
+                          const isSelected = activeMonthPoint ? activeMonthPoint.label === entry.label : true;
+                          return (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill="url(#generalRevBarGrad)"
+                              opacity={isSelected ? 1 : 0.35}
+                              style={{ cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMonthPoint(entry);
+                              }}
+                            />
+                          );
+                        })}
+                      </Bar>
+                    </ComposedChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: 320 }} />
+              )}
             </div>
           </div>
         </section>
@@ -1558,7 +1812,7 @@ export default function DashboardApp() {
             </div>
           </div>
         </div>
-        
+
         <div className="table-wrap">
           <table>
             <thead>
@@ -1643,10 +1897,10 @@ export default function DashboardApp() {
         const clientRoas = row.spend > 0 ? row.won_revenue / row.spend : null;
         const revPerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
         const cpl = row.leads > 0 ? row.spend / row.leads : null;
-        
+
         return (
-          <tr 
-            key={row.client_id} 
+          <tr
+            key={row.client_id}
             onClick={() => setSelectedClient(row.client_id)}
             style={{ cursor: 'pointer' }}
             title="Click to view scoped client dashboard"
@@ -1671,7 +1925,7 @@ export default function DashboardApp() {
         const channelRoas = row.spend > 0 ? row.won_revenue / row.spend : null;
         const revPerLead = row.leads > 0 ? row.won_revenue / row.leads : null;
         const cpl = row.leads > 0 ? row.spend / row.leads : null;
-        
+
         return (
           <tr key={row.source_key}>
             <td style={{ textAlign: 'left' }}>
@@ -1693,7 +1947,7 @@ export default function DashboardApp() {
       const cpc = row.clicks > 0 ? row.spend / row.clicks : null;
       const cpl = row.meta_reported_leads > 0 ? row.spend / row.meta_reported_leads : null;
       const cpa = row.purchases > 0 ? row.spend / row.purchases : null;
-      
+
       return (
         <tr key={row.client_id}>
           <td style={{ textAlign: 'left', fontWeight: 700, color: 'var(--brand-gold)' }}>{row.client_name}</td>
@@ -1791,7 +2045,7 @@ export default function DashboardApp() {
           </button>
 
           <span className="nav-section-title">Attribution Channels</span>
-          
+
           <button
             type="button"
             className={`nav-item ${activeTab === 'meta_ads' ? 'active' : ''}`}
@@ -1884,16 +2138,16 @@ export default function DashboardApp() {
                 </select>
               </div>
             )}
-            
+
             <div className="filter-date-wrap">
               <CalendarDays size={16} />
               <input type="date" value={start} onChange={(event) => setStart(event.target.value)} />
               <span className="date-separator">to</span>
               <input type="date" value={end} onChange={(event) => setEnd(event.target.value)} />
             </div>
-            
-            <button 
-              type="button" 
+
+            <button
+              type="button"
               className="theme-toggle-switch"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -1915,7 +2169,7 @@ export default function DashboardApp() {
         {activeTab === 'blended' && renderBlendedDashboard()}
         {activeTab === 'meta_ads' && renderMetaDashboard()}
         {activeTab !== 'blended' && activeTab !== 'meta_ads' && renderGeneralChannelDashboard()}
-        
+
         {/* Loader Overlay */}
         {loading && renderLoader()}
       </main>
